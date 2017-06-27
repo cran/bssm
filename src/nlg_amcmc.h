@@ -20,28 +20,28 @@ public:
   void is_correction_bsf(nlg_ssm model, const unsigned int nsim_states, 
     const bool const_sim, const unsigned int n_threads);
   
-  void state_sampler_bsf_is2(nlg_ssm model, const unsigned int nsim_states, 
+  void state_sampler_bsf_is2(nlg_ssm& model, const unsigned int nsim_states, 
     const arma::vec& approx_loglik_storage, const arma::mat& theta,
     arma::cube& alpha, arma::vec& weights);
   
-  void state_sampler_bsf_is1(nlg_ssm model, const unsigned int nsim_states, 
+  void state_sampler_bsf_is1(nlg_ssm& model, const unsigned int nsim_states, 
     const arma::vec& approx_loglik_storage, const arma::mat& theta,
     arma::cube& alpha, arma::vec& weights, const arma::uvec& counts);
   
   void is_correction_psi(nlg_ssm model, const unsigned int nsim_states, 
     const bool const_sim, const unsigned int n_threads);
   
-  void state_sampler_psi_is2(nlg_ssm model, const unsigned int nsim_states, 
+  void state_sampler_psi_is2(nlg_ssm& model, const unsigned int nsim_states, 
     const arma::mat& theta, const arma::cube& mode,
     arma::cube& alpha, arma::vec& weights);
-  void state_sampler_psi_is1(nlg_ssm model, const unsigned int nsim_states, 
+  void state_sampler_psi_is1(nlg_ssm& model, const unsigned int nsim_states, 
     const arma::mat& theta, const arma::cube& mode,
     arma::cube& alpha, arma::vec& weights, const arma::uvec& counts);
   arma::vec weight_storage;
   
   void gaussian_sampling(nlg_ssm model, const unsigned int n_threads);
   
-  void gaussian_state_sampler(nlg_ssm model, 
+  void gaussian_state_sampler(nlg_ssm& model, 
     const arma::mat& theta, const arma::cube& mode, arma::cube& alpha);
   
 private:

@@ -1,8 +1,8 @@
 Package: bssm
 Type: Package
 Title: Bayesian Inference of State Space Models
-Version: 0.1.0
-Date: 2017-06-24
+Version: 0.1.1
+Date: 2017-06-27
 Author: Jouni Helske, Matti Vihola
 Maintainer: Jouni Helske <jouni.helske@iki.fi>
 Description: Efficient methods for Bayesian inference of state space models 
@@ -15,11 +15,11 @@ Depends: R (>= 3.1.3)
 Suggests: KFAS (>= 1.2.1), knitr (>= 1.11), rmarkdown (>= 0.8.1),
         testthat, bayesplot
 Imports: coda (>= 0.18-1), diagis, ggplot2 (>= 2.0.0), Rcpp (>= 0.12.3)
-LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc
+LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
 SystemRequirements: C++11
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2017-06-24 13:53:46 UTC; jouni
+Packaged: 2017-06-27 16:29:07 UTC; jouni
 Repository: CRAN
-Date/Publication: 2017-06-25 07:14:15 UTC
+Date/Publication: 2017-06-27 21:16:41 UTC

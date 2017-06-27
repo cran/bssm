@@ -20,7 +20,7 @@ mcmc::mcmc(const arma::uvec& prior_distributions, const arma::mat& prior_paramet
   const bool store_states) :
   prior_distributions(prior_distributions), prior_parameters(prior_parameters),
   n_iter(n_iter), n_burnin(n_burnin), n_thin(n_thin),
-  n_samples(floor((n_iter - n_burnin) / n_thin)), 
+  n_samples(std::floor(static_cast <double> (n_iter - n_burnin) / n_thin)), 
   n_par(prior_distributions.n_elem),
   target_acceptance(target_acceptance), gamma(gamma), n_stored(0),
   posterior_storage(arma::vec(n_samples)), 
@@ -38,22 +38,22 @@ void mcmc::trim_storage() {
 }
 
 
-template void mcmc::state_posterior(ugg_ssm model, unsigned int n_threads);
-template void mcmc::state_posterior(ugg_bsm model, unsigned int n_threads);
+template void mcmc::state_posterior(ugg_ssm model, const unsigned int n_threads);
+template void mcmc::state_posterior(ugg_bsm model, const unsigned int n_threads);
 
 template <class T>
-void mcmc::state_posterior(T model, unsigned int n_threads) {
+void mcmc::state_posterior(T model, const unsigned int n_threads) {
   
   if(n_threads > 1) {
 #ifdef _OPENMP
-#pragma omp parallel num_threads(n_threads) default(none) \
-    shared(n_threads) firstprivate(model)
+#pragma omp parallel num_threads(n_threads) default(none) firstprivate(model)
     {
-      model.engine = std::mt19937(omp_get_thread_num() + 1);
-      unsigned thread_size = floor(n_stored / n_threads);
+      model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
+      unsigned thread_size = 
+        static_cast <unsigned int>(std::floor(static_cast <double> (n_stored) / n_threads));
       unsigned int start = omp_get_thread_num() * thread_size;
       unsigned int end = (omp_get_thread_num() + 1) * thread_size - 1;
-      if(omp_get_thread_num() == (n_threads - 1)) {
+      if(omp_get_thread_num() == static_cast<int>(n_threads - 1)) {
         end = n_stored - 1;
       }
       
@@ -112,11 +112,11 @@ void mcmc::state_summary(T model, arma::mat& alphahat, arma::cube& Vt) {
 }
 
 
-template void mcmc::state_sampler(ugg_ssm model, const arma::mat& theta, arma::cube& alpha);
-template void mcmc::state_sampler(ugg_bsm model, const arma::mat& theta, arma::cube& alpha);
+template void mcmc::state_sampler(ugg_ssm& model, const arma::mat& theta, arma::cube& alpha);
+template void mcmc::state_sampler(ugg_bsm& model, const arma::mat& theta, arma::cube& alpha);
 
 template <class T>
-void mcmc::state_sampler(T model, const arma::mat& theta, arma::cube& alpha) {
+void mcmc::state_sampler(T& model, const arma::mat& theta, arma::cube& alpha) {
   for (unsigned int i = 0; i < theta.n_cols; i++) {
     arma::vec theta_i = theta.col(i);
     model.set_theta(theta_i);
@@ -142,7 +142,7 @@ double mcmc::log_prior_pdf(const arma::vec& theta) const {
       if (theta(i) < 0) {
         return -arma::datum::inf;
       } else {
-        q += log(2.0) + R::dnorm(theta(i), 0, prior_parameters(0, i), 1);
+        q += std::log(2.0) + R::dnorm(theta(i), 0, prior_parameters(0, i), 1);
       }
       break;
     case 2  :
@@ -200,7 +200,7 @@ void mcmc::mcmc_gaussian(T model, const bool end_ram) {
       // use explicit min(...) as we need this value later
       // double q = proposal(theta, theta_prop);
       acceptance_prob = std::min(1.0, 
-        exp(loglik_prop - loglik + logprior_prop - logprior));
+        std::exp(loglik_prop - loglik + logprior_prop - logprior));
       //accept
       if (unif(model.engine) < acceptance_prob) {
         if (i > n_burnin) {
@@ -276,13 +276,12 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   double const_term = compute_const_term(model, approx_model); 
   
   arma::cube alpha = approx_model.simulate_states(nsim_states, true);
-  unsigned int ind = 0;
-  double ll_w = 0.0;
-  arma::vec weights = exp(model.importance_weights(approx_model, alpha) - sum_scales);
-  std::discrete_distribution<> sample(weights.begin(), weights.end());
-  ind = sample(model.engine);
+  
+  arma::vec weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
+  std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
+  unsigned int ind = sample(model.engine);
   arma::mat sampled_alpha = alpha.slice(ind);
-  ll_w = log(sum(weights) / nsim_states);
+  double ll_w = std::log(arma::accu(weights) / nsim_states);
   
   double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
   double acceptance_prob = 0.0;
@@ -306,7 +305,7 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
     arma::vec theta_prop = theta + S * u;
     // compute prior
     double logprior_prop = log_prior_pdf(theta_prop);
-   
+    
     if (logprior_prop > -arma::datum::inf) {
       // update parameters
       model.set_theta(theta_prop);
@@ -326,9 +325,9 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       const_term = compute_const_term(model, approx_model);
       
       alpha = approx_model.simulate_states(nsim_states, true);
-      weights = exp(model.importance_weights(approx_model, alpha) - sum_scales);
-      ll_w = log(sum(weights) / nsim_states);
-
+      weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
+      ll_w = std::log(arma::accu(weights) / nsim_states);
+      
       
       double loglik_prop = 
         approx_model.log_likelihood() + const_term + sum_scales + ll_w;
@@ -337,7 +336,7 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       // use explicit min(...) as we need this value later
       // double q = proposal(theta, theta_prop);
       
-      acceptance_prob = std::min(1.0, exp(loglik_prop - loglik + 
+      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik + 
         logprior_prop - logprior));
       
       //accept
@@ -346,7 +345,7 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
           acceptance_rate++;
           n_values++;
         }
-        std::discrete_distribution<> sample(weights.begin(), weights.end());
+        std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
         sampled_alpha = alpha.slice(ind);
         loglik = loglik_prop;
         logprior = logprior_prop;
@@ -430,7 +429,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -483,7 +482,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       // use explicit min(...) as we need this value later
       // double q = proposal(theta, theta_prop);
       
-      acceptance_prob = std::min(1.0, exp(loglik_prop - loglik + 
+      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik + 
         logprior_prop - logprior));
       
       //accept
@@ -494,7 +493,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
         }
         filter_smoother(alpha, indices);
         w = weights.col(n - 1);
-        std::discrete_distribution<> sample(w.begin(), w.end());
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
         sampled_alpha = alpha.slice(sample(model.engine));
         loglik = loglik_prop;
         logprior = logprior_prop;
@@ -556,7 +555,7 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -592,7 +591,7 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       // use explicit min(...) as we need this value later
       //  double q = proposal(theta, theta_prop);
       
-      acceptance_prob = std::min(1.0, exp(loglik_prop - loglik +
+      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik +
         logprior_prop - logprior));
       //accept
       
@@ -603,7 +602,7 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
         }
         filter_smoother(alpha, indices);
         w = weights.col(n - 1);
-        std::discrete_distribution<> sample(w.begin(), w.end());
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
         sampled_alpha = alpha.slice(sample(model.engine));
         loglik = loglik_prop;
         logprior = logprior_prop;
@@ -669,20 +668,19 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   // compute unnormalized mode-based correction terms 
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
-  double sum_scales = arma::accu(scales);
+  
   // compute the constant term
   double const_term = compute_const_term(model, approx_model); 
   // log-likelihood approximation
+  double sum_scales = arma::accu(scales);
   double approx_loglik = gaussian_loglik + const_term + sum_scales;
   
   arma::cube alpha = approx_model.simulate_states(nsim_states, true);
-  unsigned int ind = 0;
-  double ll_w = 0.0;
-  arma::vec weights = exp(model.importance_weights(approx_model, alpha) - sum_scales);
-  std::discrete_distribution<> sample(weights.begin(), weights.end());
-  ind = sample(model.engine);
+  arma::vec weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
+  std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
+  unsigned int ind = sample(model.engine);
   arma::mat sampled_alpha = alpha.slice(ind);
-  ll_w = log(sum(weights) / nsim_states);
+  double ll_w = std::log(arma::accu(weights) / nsim_states);
   
   double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
   
@@ -730,16 +728,16 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
-      acceptance_prob = std::min(1.0, exp(approx_loglik_prop - approx_loglik + 
+      acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik + 
         logprior_prop - logprior));
       
       // initial acceptance
       if (unif(model.engine) < acceptance_prob) {
         
         alpha = approx_model.simulate_states(nsim_states, true);
-        weights = exp(model.importance_weights(approx_model, alpha) - sum_scales);
-        double ll_w_prop = log(sum(weights) / nsim_states);
-    
+        weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
+        double ll_w_prop = std::log(arma::accu(weights) / nsim_states);
+        
         //just in case
         if(std::isfinite(ll_w_prop)) {
           // delayed acceptance ratio, in log-scale
@@ -750,7 +748,7 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
               acceptance_rate++;
               n_values++;
             }
-            std::discrete_distribution<> sample(weights.begin(), weights.end());
+            std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
             sampled_alpha = alpha.slice(sample(model.engine));
             approx_loglik = approx_loglik_prop;
             loglik = approx_loglik + ll_w_prop;
@@ -836,7 +834,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -883,7 +881,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
-      acceptance_prob = std::min(1.0, exp(approx_loglik_prop - approx_loglik + 
+      acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik + 
         logprior_prop - logprior));
       
       // initial acceptance
@@ -904,7 +902,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
             }
             filter_smoother(alpha, indices);
             w = weights.col(n - 1);
-            std::discrete_distribution<> sample(w.begin(), w.end());
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
             sampled_alpha = alpha.slice(sample(model.engine));
             approx_loglik = approx_loglik_prop;
             loglik = loglik_prop;
@@ -987,7 +985,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -1034,7 +1032,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
-      acceptance_prob = std::min(1.0, exp(approx_loglik_prop - approx_loglik + 
+      acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik + 
         logprior_prop - logprior));
       
       // initial acceptance
@@ -1053,7 +1051,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
             }
             filter_smoother(alpha, indices);
             w = weights.col(n - 1);
-            std::discrete_distribution<> sample(w.begin(), w.end());
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
             sampled_alpha = alpha.slice(sample(model.engine));
             approx_loglik = approx_loglik_prop;
             loglik = loglik_prop;
@@ -1116,7 +1114,7 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -1164,7 +1162,7 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       // use explicit min(...) as we need this value later
       // double q = proposal(theta, theta_prop);
       if(arma::is_finite(loglik_prop)) {
-        acceptance_prob = std::min(1.0, exp(loglik_prop - loglik + 
+        acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik + 
           logprior_prop - logprior));
       } else {
         acceptance_prob = 0.0;
@@ -1178,7 +1176,7 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
         }
         filter_smoother(alpha, indices);
         w = weights.col(n - 1);
-        std::discrete_distribution<> sample(w.begin(), w.end());
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
         sampled_alpha = alpha.slice(sample(model.engine));
         loglik = loglik_prop;
         logprior = logprior_prop;
@@ -1227,7 +1225,7 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -1265,7 +1263,7 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
       // use explicit min(...) as we need this value later
       //  double q = proposal(theta, theta_prop);
       
-      acceptance_prob = std::min(1.0, exp(loglik_prop - loglik +
+      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik +
         logprior_prop - logprior));
       //accept
       
@@ -1276,7 +1274,7 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
         }
         filter_smoother(alpha, indices);
         w = weights.col(n - 1);
-        std::discrete_distribution<> sample(w.begin(), w.end());
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
         sampled_alpha = alpha.slice(sample(model.engine));
         loglik = loglik_prop;
         logprior = logprior_prop;
@@ -1336,7 +1334,7 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   approx_loglik += arma::accu(model.scaling_factors(approx_model0, mode_estimate));
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -1367,45 +1365,45 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       // update parameters
       model.theta = theta_prop;
       // construct the approximate Gaussian model
-      double sum_scales;
-      double approx_loglik_prop;
+      
       mgg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol, iekf_iter);
       if(!arma::is_finite(mode_estimate)) {
         acceptance_prob = 0;
       } else {
-        sum_scales = arma::accu(model.scaling_factors(approx_model, mode_estimate));
+        double sum_scales = arma::accu(model.scaling_factors(approx_model, mode_estimate));
         // compute the log-likelihood of the approximate model
-        approx_loglik_prop = approx_model.log_likelihood() + sum_scales;
+        double approx_loglik_prop = approx_model.log_likelihood() + sum_scales;
         // stage 1 acceptance probability, used in RAM as well
-        acceptance_prob = std::min(1.0, exp(approx_loglik_prop - approx_loglik + 
+        acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik + 
           logprior_prop - logprior));
-      }
-      // initial acceptance
-      if (unif(model.engine) < acceptance_prob) {
         
-        double loglik_prop = model.psi_filter(approx_model, approx_loglik_prop - sum_scales, 
-          nsim_states, alpha, weights, indices);
-        
-        //just in case
-        if(std::isfinite(loglik_prop)) {
-          // delayed acceptance ratio, in log-scale
-          double acceptance_prob2 = loglik_prop + approx_loglik - loglik - approx_loglik_prop;
+        // initial acceptance
+        if (unif(model.engine) < acceptance_prob) {
           
-          if (std::log(unif(model.engine)) < acceptance_prob2) {
+          double loglik_prop = model.psi_filter(approx_model, approx_loglik_prop - sum_scales, 
+            nsim_states, alpha, weights, indices);
+          
+          //just in case
+          if(std::isfinite(loglik_prop)) {
+            // delayed acceptance ratio, in log-scale
+            double acceptance_prob2 = loglik_prop + approx_loglik - loglik - approx_loglik_prop;
             
-            if (i > n_burnin) {
-              acceptance_rate++;
-              n_values++;
+            if (std::log(unif(model.engine)) < acceptance_prob2) {
+              
+              if (i > n_burnin) {
+                acceptance_rate++;
+                n_values++;
+              }
+              filter_smoother(alpha, indices);
+              w = weights.col(n - 1);
+              std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+              sampled_alpha = alpha.slice(sample(model.engine));
+              approx_loglik = approx_loglik_prop;
+              loglik = loglik_prop;
+              logprior = logprior_prop;
+              theta = theta_prop;
+              new_value = true;
             }
-            filter_smoother(alpha, indices);
-            w = weights.col(n - 1);
-            std::discrete_distribution<> sample(w.begin(), w.end());
-            sampled_alpha = alpha.slice(sample(model.engine));
-            approx_loglik = approx_loglik_prop;
-            loglik = loglik_prop;
-            logprior = logprior_prop;
-            theta = theta_prop;
-            new_value = true;
           }
         }
       }
@@ -1461,7 +1459,7 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n - 1);
-  std::discrete_distribution<> sample0(w.begin(), w.end());
+  std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
   
   double acceptance_prob = 0.0;
@@ -1494,47 +1492,47 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
       
       // construct the approximate Gaussian model
       mgg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol, iekf_iter);
-      double sum_scales;
-      double approx_loglik_prop;
+      
       if(!arma::is_finite(mode_estimate)) {
         acceptance_prob = 0;
       } else {
         
         // compute the log-likelihood of the approximate model
-        sum_scales = arma::accu(model.scaling_factors(approx_model, mode_estimate));
+        double sum_scales = arma::accu(model.scaling_factors(approx_model, mode_estimate));
         
         // compute the log-likelihood of the approximate model
-        approx_loglik_prop = approx_model.log_likelihood() + sum_scales;
-      }
-      // stage 1 acceptance probability, used in RAM as well
-      acceptance_prob = std::min(1.0, exp(approx_loglik_prop - approx_loglik + 
-        logprior_prop - logprior));
-      
-      // initial acceptance
-      if (unif(model.engine) < acceptance_prob) {
+        double approx_loglik_prop = approx_model.log_likelihood() + sum_scales;
         
+        // stage 1 acceptance probability, used in RAM as well
+        acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik + 
+          logprior_prop - logprior));
         
-        double loglik_prop = model.bsf_filter(nsim_states, alpha, weights, indices);
-        
-        //just in case
-        if(std::isfinite(loglik_prop)) {
-          // delayed acceptance ratio, in log-scale
-          double acceptance_prob2 = loglik_prop + approx_loglik - loglik - approx_loglik_prop;
-          if (std::log(unif(model.engine)) < acceptance_prob2) {
-            
-            if (i > n_burnin) {
-              acceptance_rate++;
-              n_values++;
+        // initial acceptance
+        if (unif(model.engine) < acceptance_prob) {
+          
+          
+          double loglik_prop = model.bsf_filter(nsim_states, alpha, weights, indices);
+          
+          //just in case
+          if(std::isfinite(loglik_prop)) {
+            // delayed acceptance ratio, in log-scale
+            double acceptance_prob2 = loglik_prop + approx_loglik - loglik - approx_loglik_prop;
+            if (std::log(unif(model.engine)) < acceptance_prob2) {
+              
+              if (i > n_burnin) {
+                acceptance_rate++;
+                n_values++;
+              }
+              filter_smoother(alpha, indices);
+              w = weights.col(n - 1);
+              std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+              sampled_alpha = alpha.slice(sample(model.engine));
+              approx_loglik = approx_loglik_prop;
+              loglik = loglik_prop;
+              logprior = logprior_prop;
+              theta = theta_prop;
+              new_value = true;
             }
-            filter_smoother(alpha, indices);
-            w = weights.col(n - 1);
-            std::discrete_distribution<> sample(w.begin(), w.end());
-            sampled_alpha = alpha.slice(sample(model.engine));
-            approx_loglik = approx_loglik_prop;
-            loglik = loglik_prop;
-            logprior = logprior_prop;
-            theta = theta_prop;
-            new_value = true;
           }
         }
       }
