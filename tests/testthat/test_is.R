@@ -11,9 +11,6 @@ test_that("Test that poisson ng_bsm give identical results with ngssm",{
     distribution = "poisson"), NA)
   expect_error(sim_ng_bsm <- importance_sample(model_ng_bsm, 4, seed = 2), NA)
   expect_equal(sim_ng_bsm, sim_ngssm)
-  testvalues <- structure(c(0.111093900417338, 0.440469859987445, 3.04702921656647, 
-    1.65453321843038), .Dim = c(4L, 1L))
-  expect_equal(sim_ng_bsm$weights, testvalues)
 })
 
 test_that("Test that svm still works",{
@@ -22,6 +19,8 @@ test_that("Test that svm still works",{
     sd_ar = halfnormal(0.2, 5), sigma = halfnormal(1, 2))
   
   expect_error(sim <- importance_sample(model, 4, seed = 2), NA)
+  
+  skip_on_cran()
   testvalues <- structure(c(2.08604083835474, 0.245724972898813, 0.0860932717666039, 
     0.591816325453726), .Dim = c(4L, 1L))
   expect_equal(sim$weights, testvalues)

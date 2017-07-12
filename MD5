@@ -1,6 +1,6 @@
-8356df990e26a15a6b0f015753ea928f *DESCRIPTION
+3b5ffc8b23dd4f2298bb98744ca57593 *DESCRIPTION
 50f653e28f737aa48946e38bfaf0deea *NAMESPACE
-fd789bcd42b3a61aa67a525dac9e8a67 *NEWS
+eb87f982b71838b024635390488bc287 *NEWS
 f43618066871baf877b72f21c0384139 *R/RcppExports.R
 f57087cda07aa1600bc312e01117e668 *R/approx.R
 aec618e234a70fb621b9cc37e35a0bf7 *R/as_gssm.R
@@ -31,7 +31,7 @@ d5b49069e15ec688c116f4c4445710e9 *R/zzz.R
 73d0b84fecd7ec1a7c3fa74f9ef55789 *inst/CITATION
 3ab4b3262195512d9562656373b69e0f *inst/doc/bssm.R
 9f73416c9843562d5ffd1406555f676c *inst/doc/bssm.Rmd
-fa0c56efc5d70ca01827edc3aaa41447 *inst/doc/bssm.html
+e573481194c40fdd9690c237ed781bd3 *inst/doc/bssm.html
 da6e518666ada0b80d4848b92d0f0880 *inst/doc/growth_model.R
 24f47d25bc02c00c44130b5817398cd8 *inst/doc/growth_model.Rmd
 71e485e7195e60525ed720c3ea890e7a *inst/doc/growth_model.html
@@ -149,9 +149,9 @@ c49b56a1ce9f3567cf175e3946a9a5fc *tests/testthat/bsf_reference/bsf_nbinomial_ref
 057ace0e2e018e4580e8ab6f65109656 *tests/testthat/test_approx.R
 0e4e655ee5930f3b1f1f452781255d74 *tests/testthat/test_as_gssm.R
 f954d3c3032d2a0ce8ab8df224e8a7a0 *tests/testthat/test_basics.R
-45d14b82f64249f40e5c34eed33f3608 *tests/testthat/test_bootstrap_filter.R
-4b9424d4ba7c90c723488bdff87ef64f *tests/testthat/test_is.R
-0f8381ef867db81165f2c7a5bed62cff *tests/testthat/test_mcmc.R
+582e676760214ed721c34b5738fbdd64 *tests/testthat/test_bootstrap_filter.R
+28016b1bee53d39820a1cc80606f164a *tests/testthat/test_is.R
+65fe6b2dda62fe13b75c88415f62f7d3 *tests/testthat/test_mcmc.R
 863146935143ac1cf0a9c97f7aca4f3b *tests/testthat/test_models.R
 56013911383a9261f7c7f4593327fb5a *tests/testthat/test_particle_filters.R
 9f73416c9843562d5ffd1406555f676c *vignettes/bssm.Rmd

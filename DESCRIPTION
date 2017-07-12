@@ -1,8 +1,8 @@
 Package: bssm
 Type: Package
 Title: Bayesian Inference of State Space Models
-Version: 0.1.1
-Date: 2017-06-27
+Version: 0.1.1-1
+Date: 2017-07-06
 Author: Jouni Helske, Matti Vihola
 Maintainer: Jouni Helske <jouni.helske@iki.fi>
 Description: Efficient methods for Bayesian inference of state space models 
@@ -19,7 +19,8 @@ LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
 SystemRequirements: C++11
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
+ByteCompile: true
 NeedsCompilation: yes
-Packaged: 2017-06-27 16:29:07 UTC; jouni
+Packaged: 2017-07-06 09:38:27 UTC; jouni
 Repository: CRAN
-Date/Publication: 2017-06-27 21:16:41 UTC
+Date/Publication: 2017-07-12 14:39:32 UTC
