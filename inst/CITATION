@@ -1,11 +1,11 @@
 c(
   bibentry(
     bibtype = "Manual",
-    title = "{bssm}: Bayesian Inference of State Space Models",
+    title = "{bssm}: Bayesian Inference of Non-Linear and Non-Gaussian State Space Models in R",
     author = "Jouni Helske and Matti Vihola",
     year = sub("-.*", "", meta$Date),
     note = sprintf("R package version %s", meta$Version),
-    url = "http://github.com/helske/bssm",
+    url = "https://CRAN.R-project.org/package=bssm/vignettes/bssm.pdf",
     key = "bssm"
   ),
   bibentry(

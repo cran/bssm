@@ -51,20 +51,20 @@ ts.plot(cbind(y, out_filter$att[, 2], out_smoother$alphahat[, 2]), col = 1:3)
 ts.plot(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1]), col = 1:2)
 
 ## ----mcmc----------------------------------------------------------------
-out_mcmc_pm <- run_mcmc(model, n_iter = 5000, nsim_states = 10, method = "pm", 
+out_mcmc_pm <- run_mcmc(model, n_iter = 5000, nsim_states = 10, method = "da", 
   simulation_method = "psi")
 out_mcmc_ekf <- run_mcmc(model, n_iter = 5000, method = "ekf")
-library("diagis")
-alpha_ekf <- weighted_mean(out_mcmc_ekf$alpha, out_mcmc_ekf$counts)
-alpha_pm <- weighted_mean(out_mcmc_pm$alpha, out_mcmc_pm$counts)
-ts.plot(cbind(y, alpha_pm[, 2], alpha_ekf[, 2]), col = 1:3)
-ts.plot(cbind(alpha_pm[, 1], alpha_ekf[, 1]), col = 1:2)
+summary_pm <- summary(out_mcmc_pm)
+summary_ekf <- summary(out_mcmc_ekf)
+ts.plot(cbind(summary_pm$states$Mean[, 1], summary_ekf$states$Mean[, 1]), col = 1:3)
+ts.plot(cbind(y, summary_pm$states$Mean[, 2], summary_ekf$states$Mean[, 2]), col = 1:3)
 
 ## ----pred----------------------------------------------------------------
 future_model <- model
-future_model$y <- ts(rep(NA, 100), start = end(model$y))
-out_pred <- predict(out_mcmc_pm, future_model, type = "response")
+future_model$y <- ts(rep(NA, 100), start = end(model$y) + c(1, 0))
+out_pred_pm <- predict(out_mcmc_pm, future_model, type = "response", nsim = 50)
+out_pred_ekf <- predict(out_mcmc_ekf, future_model, type = "response", nsim = 0)
 library("ggplot2")
-autoplot(out_pred, y = model$y, plot_median = FALSE)
-
+autoplot(out_pred_pm, y = model$y, plot_median = FALSE)
+autoplot(out_pred_ekf, y = model$y, plot_median = FALSE)
 

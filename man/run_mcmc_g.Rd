@@ -3,6 +3,7 @@
 \name{run_mcmc.gssm}
 \alias{run_mcmc.gssm}
 \alias{run_mcmc.bsm}
+\alias{run_mcmc.lgg_ssm}
 \title{Bayesian Inference of Linear-Gaussian State Space Models}
 \usage{
 \method{run_mcmc}{gssm}(object, n_iter, sim_states = TRUE, type = "full",
@@ -11,6 +12,11 @@
   seed = sample(.Machine$integer.max, size = 1), ...)
 
 \method{run_mcmc}{bsm}(object, n_iter, sim_states = TRUE, type = "full",
+  n_burnin = floor(n_iter/2), n_thin = 1, gamma = 2/3,
+  target_acceptance = 0.234, S, end_adaptive_phase = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), ...)
+
+\method{run_mcmc}{lgg_ssm}(object, n_iter, sim_states = TRUE, type = "full",
   n_burnin = floor(n_iter/2), n_thin = 1, gamma = 2/3,
   target_acceptance = 0.234, S, end_adaptive_phase = TRUE, n_threads = 1,
   seed = sample(.Machine$integer.max, size = 1), ...)
@@ -34,12 +40,13 @@ more accurate than calculations based on simulation smoother.
 \eqn{\theta}. Optional for \code{bsm} objects.}
 
 \item{n_burnin}{Length of the burn-in period which is disregarded from the
-results. Defaults to \code{n_iter / 2}.}
+results. Defaults to \code{n_iter / 2}. Note that all MCMC algorithms of \code{bssm}
+ used adaptive MCMC during the burn-in period in order to find good proposal.}
 
-\item{n_thin}{Thinning rate. All MCMC algoritms in \code{bssm} use the jump chain 
-representation, and the thinning is applied to these blocks. 
-This defaults to 1, but for IS-corrected method (\code{method="isc"}), larger 
-value is often more effective.}
+\item{n_thin}{Thinning rate. All MCMC algoritms in \code{bssm} use the jump chain
+representation, and the thinning is applied to these blocks.
+This defaults to 1, but for IS-corrected methods, larger
+value is often computationally more effective.}
 
 \item{gamma}{Tuning parameter for the adaptation of RAM algorithm. Must be
 between 0 and 1 (not checked).}

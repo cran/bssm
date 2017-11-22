@@ -4,10 +4,16 @@
 \alias{summary.mcmc_output}
 \title{Summary of MCMC object}
 \usage{
-\method{summary}{mcmc_output}(object, only_theta = FALSE, ...)
+\method{summary}{mcmc_output}(object, return_se = FALSE, only_theta = FALSE,
+  ...)
 }
 \arguments{
 \item{object}{Output from \code{run_mcmc}}
+
+\item{return_se}{if \code{FALSE} (default), computation of standard 
+errors and effective sample sizes is omitted. 
+This saves time, as computing the spectral densities (by \code{coda}) can be slow for 
+large models.}
 
 \item{only_theta}{If \code{TRUE}, summaries are computed only for hyperparameters theta.}
 

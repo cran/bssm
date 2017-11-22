@@ -4,6 +4,8 @@
 #include "bssm.h"
 
 class nlg_ssm;
+class lgg_ssm;
+class sde_ssm;
 
 class mcmc {
   
@@ -36,7 +38,7 @@ public:
   
   // compute the log-ratio of proposals
   // double proposal(const arma::vec& theta, const arma::vec& theta_proposal) const;
-
+  
   // sample states given theta
   template <class T>
   void state_posterior(T model, const unsigned int n_threads);
@@ -64,16 +66,16 @@ public:
   // delayed acceptance mcmc
   template<class T>
   void da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_states, 
-   const bool local_approx, const arma::vec& initial_mode, 
-   const unsigned int max_iter, const double conv_tol);
+    const bool local_approx, const arma::vec& initial_mode, 
+    const unsigned int max_iter, const double conv_tol);
   template<class T>
   void da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_states, 
     const bool local_approx, const arma::vec& initial_mode, 
     const unsigned int max_iter, const double conv_tol);
   template<class T>
   void da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_states, 
-   const bool local_approx, const arma::vec& initial_mode, 
-   const unsigned int max_iter, const double conv_tol);
+    const bool local_approx, const arma::vec& initial_mode, 
+    const unsigned int max_iter, const double conv_tol);
   
   // using non-linear models
   void pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram, const unsigned int nsim_states, 
@@ -81,11 +83,17 @@ public:
   void pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, 
     const unsigned int nsim_states);
   void ekf_mcmc_nlg(nlg_ssm model, const bool end_ram, const unsigned int max_iter, 
-  const double conv_tol, const unsigned int iekf_iter);
+    const double conv_tol, const unsigned int iekf_iter);
   void da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram, const unsigned int nsim_states,
     const unsigned int max_iter, const double conv_tol, const unsigned int iekf_iter);
   void da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int nsim_states,
     const unsigned int max_iter, const double conv_tol, const unsigned int iekf_iter);
+  
+  // sde models
+  void pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram, const unsigned int nsim_states,
+    const unsigned int L);
+  void da_mcmc_bsf_sde(sde_ssm model, const bool end_ram, const unsigned int nsim_states,
+    const unsigned int L_c, const unsigned int L_f, const bool coupled, const bool target_full = false);
   
   arma::vec posterior_storage;
   arma::mat theta_storage;
@@ -94,9 +102,9 @@ public:
   arma::mat S;
   double acceptance_rate;
   
-
   
-
+  
+  
 };
 
 

@@ -3,62 +3,78 @@
 \name{run_mcmc.ngssm}
 \alias{run_mcmc.ngssm}
 \alias{run_mcmc.ng_bsm}
+\alias{run_mcmc.ng_ar1}
 \alias{run_mcmc.svm}
 \alias{run_mcmc.nlg_ssm}
+\alias{run_mcmc.sde_ssm}
 \title{Bayesian inference of non-Gaussian or non-linear state space models using MCMC}
 \usage{
 \method{run_mcmc}{ngssm}(object, n_iter, nsim_states, type = "full",
-  method = "pm", simulation_method = "psi", const_m = TRUE,
-  delayed_acceptance = TRUE, n_burnin = floor(n_iter/2), n_thin = 1,
-  gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  local_approx = TRUE, n_threads = 1, seed = sample(.Machine$integer.max,
-  size = 1), max_iter = 100, conv_tol = 1e-08, ...)
+  method = "da", simulation_method = "psi", n_burnin = floor(n_iter/2),
+  n_thin = 1, gamma = 2/3, target_acceptance = 0.234, S,
+  end_adaptive_phase = TRUE, local_approx = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  conv_tol = 1e-08, ...)
 
 \method{run_mcmc}{ng_bsm}(object, n_iter, nsim_states, type = "full",
-  method = "pm", simulation_method = "psi", const_m = TRUE,
-  delayed_acceptance = TRUE, n_burnin = floor(n_iter/2), n_thin = 1,
-  gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  local_approx = TRUE, n_threads = 1, seed = sample(.Machine$integer.max,
-  size = 1), max_iter = 100, conv_tol = 1e-08, ...)
+  method = "da", simulation_method = "psi", n_burnin = floor(n_iter/2),
+  n_thin = 1, gamma = 2/3, target_acceptance = 0.234, S,
+  end_adaptive_phase = TRUE, local_approx = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  conv_tol = 1e-08, ...)
+
+\method{run_mcmc}{ng_ar1}(object, n_iter, nsim_states, type = "full",
+  method = "da", simulation_method = "psi", n_burnin = floor(n_iter/2),
+  n_thin = 1, gamma = 2/3, target_acceptance = 0.234, S,
+  end_adaptive_phase = TRUE, local_approx = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  conv_tol = 1e-08, ...)
 
 \method{run_mcmc}{svm}(object, n_iter, nsim_states, type = "full",
-  method = "pm", simulation_method = "psi", const_m = TRUE,
-  delayed_acceptance = TRUE, n_burnin = floor(n_iter/2), n_thin = 1,
-  gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  local_approx = TRUE, n_threads = 1, seed = sample(.Machine$integer.max,
-  size = 1), max_iter = 100, conv_tol = 1e-08, ...)
+  method = "da", simulation_method = "psi", n_burnin = floor(n_iter/2),
+  n_thin = 1, gamma = 2/3, target_acceptance = 0.234, S,
+  end_adaptive_phase = TRUE, local_approx = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  conv_tol = 1e-08, ...)
 
 \method{run_mcmc}{nlg_ssm}(object, n_iter, nsim_states, type = "full",
-  method = "pm", simulation_method = "psi", const_m = TRUE,
-  delayed_acceptance = TRUE, n_burnin = floor(n_iter/2), n_thin = 1,
+  method = "da", simulation_method = "psi", n_burnin = floor(n_iter/2),
+  n_thin = 1, gamma = 2/3, target_acceptance = 0.234, S,
+  end_adaptive_phase = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  conv_tol = 1e-04, iekf_iter = 0, ...)
+
+\method{run_mcmc}{sde_ssm}(object, n_iter, nsim_states, type = "full",
+  method = "da", L_c, L_f, n_burnin = floor(n_iter/2), n_thin = 1,
   gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  n_threads = 1, seed = sample(.Machine$integer.max, size = 1),
-  max_iter = 100, conv_tol = 1e-04, iekf_iter = 0, ...)
+  n_threads = 1, seed = sample(.Machine$integer.max, size = 1), ...)
 }
 \arguments{
 \item{object}{Model object.}
 
 \item{n_iter}{Number of MCMC iterations.}
 
-\item{nsim_states}{Number of state samples per MCMC iteration. 
+\item{nsim_states}{Number of state samples per MCMC iteration.
 If <2, approximate inference based on Gaussian approximation is performed.}
 
 \item{type}{Either \code{"full"} (default), or \code{"summary"}. The
 former produces samples of states whereas the latter gives the mean and
 variance estimates of the states.}
 
-\item{method}{Whether pseudo-marginal MCMC (\code{"pm"}) (default) or
-importance sampling type correction (\code{"isc"}) is used.}
+\item{method}{What MCMC algorithm to use? Possible choices are
+\code{"pm"} for pseudo-marginal MCMC,
+\code{"da"} for delayed acceptance version of PMCMC (default), or one of the three
+importance sampling type weighting schemes:
+\code{"is3"} for simple importance sampling (weight is computed for each MCMC iteration independently),
+\code{"is2"} for jump chain importance sampling type weighting, or
+\code{"is1"} for importance sampling type weighting where the number of particles used for
+weight computations is proportional to the length of the jump chain block.}
 
 \item{simulation_method}{If \code{"spdk"}, non-sequential importance sampling based
-on Gaussian approximation is used. If \code{"bootstrap"}, bootstrap filter
-is used, and if \code{"psi"}, psi-auxiliary particle filter is used.}
-
-\item{const_m}{For importance sampling correction method, should a constant number of 
-samples be used for each block? Default is \code{TRUE}. See references for details.}
-
-\item{delayed_acceptance}{For pseudo-marginal MCMC, should delayed acceptance based
-on the Gaussian approximation be used?}
+on Gaussian approximation is used. If \code{"bsf"}, bootstrap filter
+is used (default for \code{"nlg_ssm"} and only option for \code{"sde_ssm"}),
+and if \code{"psi"}, psi-auxiliary particle filter is used
+(default for models with linear-Gaussian state equation).}
 
 \item{n_burnin}{Length of the burn-in period which is disregarded from the
 results. Defaults to \code{n_iter / 2}.}
@@ -77,8 +93,8 @@ distribution is \eqn{SS'}.}
 
 \item{end_adaptive_phase}{If \code{TRUE} (default), $S$ is held fixed after the burnin period.}
 
-\item{local_approx}{If \code{TRUE} (default), Gaussian approximation needed for 
-importance sampling is performed at each iteration. If false, approximation is updated only 
+\item{local_approx}{If \code{TRUE} (default), Gaussian approximation needed for
+importance sampling is performed at each iteration. If false, approximation is updated only
 once at the start of the MCMC. Not used for non-linear models.}
 
 \item{n_threads}{Number of threads for state simulation.}
@@ -91,10 +107,13 @@ once at the start of the MCMC. Not used for non-linear models.}
 
 \item{...}{Ignored.}
 
-\item{iekf_iter}{If zero (default), first approximation for non-linear 
-Gaussian models is obtained from extended Kalman filter. If 
-\code{iekf_iter > 0}, iterated extended Kalman filter is used with 
+\item{iekf_iter}{If zero (default), first approximation for non-linear
+Gaussian models is obtained from extended Kalman filter. If
+\code{iekf_iter > 0}, iterated extended Kalman filter is used with
 \code{iekf_iter} iterations.}
+
+\item{L_c, L_f}{Integer values defining the discretization levels for first and second stages. 
+For PM methods, maximum of these is used.}
 }
 \description{
 Methods for posterior inference of states and parameters.
