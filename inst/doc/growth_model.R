@@ -19,11 +19,11 @@ t <- seq(0.1, 25, dT)
 p <- K * p0 * exp(r * t) / (K + p0 * (exp(r * t) - 1))
 
 # observations
-y <- p + rnorm(length(t), 0, 5)
+y <- ts(p + rnorm(length(t), 0, 5))
 
 
 ## ----pointers------------------------------------------------------------
-Rcpp::sourceCpp("growth_model_functions.cpp")
+Rcpp::sourceCpp("nlg_ssm_template.cpp")
 pntrs <- create_xptrs()
 
 ## ----theta---------------------------------------------------------------

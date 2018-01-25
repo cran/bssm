@@ -4,6 +4,8 @@
 #include "ung_bsm.h"
 #include "ung_svm.h"
 #include "nlg_ssm.h"
+#include "ung_ar1.h"
+#include "ugg_ar1.h"
 
 // [[Rcpp::export]]
 Rcpp::List gaussian_predict(const Rcpp::List& model_,
@@ -14,16 +16,25 @@ Rcpp::List gaussian_predict(const Rcpp::List& model_,
   
   switch (model_type) {
   case 1: {
-    ugg_ssm model(clone(model_), seed, 0, 0, 0, 0);
+  ugg_ssm model(clone(model_), seed, 0, 0, 0, 0);
+  if (intervals) {
+    return model.predict_interval(probs, theta, alpha, counts, predict_type);
+  } else {
+    return Rcpp::List::create(model.predict_sample(theta, alpha, counts,
+      predict_type, nsim));
+  }
+} break;
+  case 2: {
+    ugg_bsm model(clone(model_), seed);
     if (intervals) {
       return model.predict_interval(probs, theta, alpha, counts, predict_type);
     } else {
-      return Rcpp::List::create(model.predict_sample(theta, alpha, counts,
+      return Rcpp::List::create(model.predict_sample(theta, alpha, counts, 
         predict_type, nsim));
     }
   } break;
-  case 2: {
-    ugg_bsm model(clone(model_), seed);
+  case 3: {
+    ugg_ar1 model(clone(model_), seed);
     if (intervals) {
       return model.predict_interval(probs, theta, alpha, counts, predict_type);
     } else {
@@ -41,18 +52,22 @@ arma::cube nongaussian_predict(const Rcpp::List& model_,
   const arma::uvec& counts, const unsigned int predict_type, 
   const unsigned int seed, const int model_type, const unsigned int nsim) {
   
-
+  
   switch (model_type) {
   case 1: {
-    ung_ssm model(clone(model_), seed, 0, 0, 0);
-    return model.predict_sample(theta, alpha, counts, predict_type, nsim);
-  } break;
+  ung_ssm model(clone(model_), seed, 0, 0, 0);
+  return model.predict_sample(theta, alpha, counts, predict_type, nsim);
+} break;
   case 2: {
     ung_bsm model(clone(model_), seed);
     return model.predict_sample(theta, alpha, counts, predict_type, nsim);
   } break;
   case 3: {
     ung_svm model(clone(model_), seed);
+    return model.predict_sample(theta, alpha, counts, predict_type, nsim);
+  } break;
+  case 4: {
+    ung_ar1 model(clone(model_), seed);
     return model.predict_sample(theta, alpha, counts, predict_type, nsim);
   } break;
   }
@@ -110,6 +125,6 @@ Rcpp::List nonlinear_predict_ekf(const arma::mat& y, SEXP Z, SEXP H,
   nlg_ssm model(y, *xpfun_Z, *xpfun_H, *xpfun_T, *xpfun_R, *xpfun_Zg, *xpfun_Tg, 
     *xpfun_a1, *xpfun_P1, theta.col(0), *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
     time_varying, 1);
-    return model.predict_interval(probs, theta,
-      alpha_last, P_last, counts, predict_type);
+  return model.predict_interval(probs, theta,
+    alpha_last, P_last, counts, predict_type);
 }

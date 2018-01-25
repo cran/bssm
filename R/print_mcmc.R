@@ -2,14 +2,15 @@
 #'
 #' Prints some basic summaries from the MCMC run by  \code{\link{run_mcmc}}.
 #' 
-#' Two-types of standard error and effective sample size estimates are returned. 
+#' In case of IS-corrected MCMC, 
+#' two-types of standard error and effective sample size estimates are returned. 
 #' SE-IS (ESS-IS) are based only on importance sampling estimates, with weights 
 #' corresponding to the block sizes of the jump chain multiplied by the 
 #' importance correction weights (if IS-corrected method was used). These estimates
 #' ignore the possible autocorrelations but provide a lower-bound for the asymptotic 
 #' standard error. The SE-AR (ESS-AR) estimates are based on the spectral density 
 #' of \eqn{(x-hatx) * w} where \eqn{hatx} is the weighted mean of \eqn{x} and 
-#' \eqn{w} contains the weights. See vignette for details.
+#' \eqn{w} contains the weights.
 #' 
 #' @method print mcmc_output
 #' @importFrom diagis weighted_mean weighted_var weighted_se ess
@@ -19,11 +20,15 @@
 #' @export
 print.mcmc_output <- function(x, ...) {
   
-  theta <- mcmc(x$theta)
-  alpha <- mcmc(matrix(x$alpha[nrow(x$alpha),,], ncol = ncol(x$alpha), byrow = TRUE, 
-    dimnames = list(NULL, colnames(x$alpha))))
-  w <- x$counts * if (x$mcmc_type %in% paste0("is", 1:3)) x$weights else 1
-  
+  if (x$mcmc_type %in% paste0("is", 1:3)) {
+    theta <- mcmc(x$theta)
+    alpha <- mcmc(matrix(x$alpha[nrow(x$alpha),,], ncol = ncol(x$alpha), byrow = TRUE, 
+      dimnames = list(NULL, colnames(x$alpha))))
+    w <- x$counts * x$weights
+  } else {
+    theta <- expand_sample(x, "theta")
+    alpha <- expand_sample(x, "state", times = nrow(x$alpha), by_states = FALSE)[[1]]
+  }
   
   cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"), 
     "\n", sep = "")
@@ -34,46 +39,85 @@ print.mcmc_output <- function(x, ...) {
   cat("\nAcceptance rate after the burn-in period: ", paste(x$acceptance_rate,"\n", sep = ""))
   
   cat("\nSummary for theta:\n\n")
-  mean_theta <- weighted_mean(theta, w)
-  sd_theta <- sqrt(diag(weighted_var(theta, w, method = "moment")))
-  se_theta_is <- weighted_se(theta, w)
-  spec <- sapply(1:ncol(theta), function(i) spectrum0.ar((theta[, i] - mean_theta[i]) * w)$spec)
-  se_theta_ar <- sqrt(spec / length(w)) / mean(w)
-  se_theta_total <- sqrt(se_theta_is^2 + se_theta_ar^2)
-  stats <- matrix(c(mean_theta, sd_theta, se_theta_is, se_theta_ar, se_theta_total), ncol = 5, 
-    dimnames = list(colnames(x$theta), c("Mean", "SD", "SE-IS", "SE-AR", "SE")))
+  if (x$mcmc_type %in% paste0("is", 1:3)) {
+    mean_theta <- weighted_mean(theta, w)
+    sd_theta <- sqrt(diag(weighted_var(theta, w, method = "moment")))
+    se_theta_is <- weighted_se(theta, w)
+    spec <- sapply(1:ncol(theta), function(i) spectrum0.ar((theta[, i] - mean_theta[i]) * w)$spec)
+    se_theta_ar <- sqrt(spec / length(w)) / mean(w)
+    se_theta_total <- sqrt(se_theta_is^2 + se_theta_ar^2)
+    stats <- matrix(c(mean_theta, sd_theta, se_theta_is, se_theta_ar, se_theta_total), ncol = 5, 
+      dimnames = list(colnames(x$theta), c("Mean", "SD", "SE-IS", "SE-AR", "SE")))
+  } else {
+    mean_theta <- colMeans(theta)
+    sd_theta <- apply(theta, 2, sd)
+    se_theta <-  sqrt(spectrum0.ar(theta)$spec/nrow(theta))
+    stats <- matrix(c(mean_theta, sd_theta, se_theta), ncol = 3, 
+      dimnames = list(colnames(x$theta), c("Mean", "SD", "SE")))
+  }
+  
   print(stats)
   
   cat("\nEffective sample sizes for theta:\n\n")
-  ess_theta_is <- apply(theta, 2, function(z) ess(w, identity, z))
-  ess_theta_ar <- (sd_theta / se_theta_ar)^2
-  esss <- matrix(c(ess_theta_is, ess_theta_ar), ncol = 2, 
-    dimnames = list(colnames(x$theta), c("ESS-IS", "ESS-AR")))
+  if (x$mcmc_type %in% paste0("is", 1:3)) {
+    ess_theta_is <- apply(theta, 2, function(z) ess(w, identity, z))
+    ess_theta_ar <- (sd_theta / se_theta_ar)^2
+    esss <- matrix(c(ess_theta_is, ess_theta_ar), ncol = 2, 
+      dimnames = list(colnames(x$theta), c("ESS-IS", "ESS-AR")))
+  } else {
+    esss <- matrix((sd_theta / se_theta)^2, ncol = 1, 
+      dimnames = list(colnames(x$theta), c("ESS")))
+  }
   print(esss)
   
   
+  n <- nrow(x$alpha)
+  cat(paste0("\nSummary for alpha_", n), ":\n\n", sep = "")
   
-  cat(paste0("\nSummary for alpha_",nrow(x$alpha)), ":\n\n", sep="")
-  mean_alpha <- weighted_mean(alpha, w)
-  sd_alpha <- sqrt(diag(weighted_var(alpha, w, method = "moment")))
-  se_alpha_is <- weighted_se(alpha, w)
-  spec <- sapply(1:ncol(alpha), function(i) spectrum0.ar((alpha[, i] - mean_alpha[i]) * w)$spec)
-  se_alpha_ar <- sqrt(spec / length(w)) / mean(w)
-  se_alpha_total <- sqrt(se_alpha_is^2 + se_alpha_ar^2)
-  stats <- matrix(c(mean_alpha, sd_alpha, se_alpha_is, se_alpha_ar, se_alpha_total), ncol = 5, 
-    dimnames = list(colnames(x$alpha), c("Mean", "SD", "SE-IS", "SE-AR", "SE")))
-  print(stats)
-  
-  cat("\nEffective sample sizes for alpha:\n\n")
-  ess_alpha_is <- apply(alpha, 2, function(z) ess(w, identity, z))
-  ess_alpha_ar <- (sd_alpha / se_alpha_ar)^2
-  esss <- matrix(c(ess_alpha_is, ess_alpha_ar), ncol = 2, 
-    dimnames = list(colnames(x$alpha), c("ESS-IS", "ESS-AR")))
-  print(esss)
-  
+  if (is.null(x$alphahat)) {
+    if (!is.null(x$alpha)) {
+      if (x$mcmc_type %in% paste0("is", 1:3)) {
+        mean_alpha <- weighted_mean(alpha, w)
+        sd_alpha <- sqrt(diag(weighted_var(alpha, w, method = "moment")))
+        se_alpha_is <- weighted_se(alpha, w)
+        spec <- sapply(1:ncol(alpha), function(i) spectrum0.ar((alpha[, i] - mean_alpha[i]) * w)$spec)
+        se_alpha_ar <- sqrt(spec / length(w)) / mean(w)
+        se_alpha_total <- sqrt(se_alpha_is^2 + se_alpha_ar^2)
+        stats <- matrix(c(mean_alpha, sd_alpha, se_alpha_is, se_alpha_ar, se_alpha_total), ncol = 5, 
+          dimnames = list(colnames(x$alpha), c("Mean", "SD", "SE-IS", "SE-AR", "SE")))
+      } else {
+        mean_alpha <- colMeans(alpha)
+        sd_alpha <- apply(alpha, 2, sd)
+        se_alpha <-  sqrt(spectrum0.ar(alpha)$spec / nrow(alpha))
+        stats <- matrix(c(mean_alpha, sd_alpha, se_alpha), ncol = 3, 
+          dimnames = list(colnames(x$alpha), c("Mean", "SD", "SE")))
+      }
+      print(stats)
+      
+      
+      cat(paste0("\nEffective sample sizes for alpha_", n), ":\n\n", sep = "")
+      if (x$mcmc_type %in% paste0("is", 1:3)) {
+        ess_alpha_is <- apply(alpha, 2, function(z) ess(w, identity, z))
+        ess_alpha_ar <- (sd_alpha / se_alpha_ar)^2
+        esss <- matrix(c(ess_alpha_is, ess_alpha_ar), ncol = 2, 
+          dimnames = list(colnames(x$alpha), c("ESS-IS", "ESS-AR")))
+      } else {
+        esss <- matrix((sd_alpha / se_alpha)^2, ncol = 1, 
+          dimnames = list(colnames(x$alpha), c("ESS")))
+      }
+      print(esss)
+    } else print("No posterior samples for states available.")
+  } else {
+    if (ncol(x$alphahat) == 1) {
+      print(cbind("Mean" = x$alphahat[n, ], "SD" = sqrt(x$Vt[,,n])))
+    } else {
+      print(cbind("Mean" = x$alphahat[n, ], "SD" = sqrt(diag(x$Vt[,,n]))))
+    }
+  }
   cat("\nRun time:\n")
   print(x$time)
 }
+
 #' Summary of MCMC object
 #' 
 #' This functions returns a list containing mean, standard deviations, standard errors, and 
@@ -119,7 +163,8 @@ summary.mcmc_output <- function(object, return_se = FALSE, only_theta = FALSE, .
   
   if (!only_theta) {
     m <- ncol(object$alpha)
-    mean_alpha <- weighted_mean(object$alpha, w)
+    mean_alpha <- ts(weighted_mean(object$alpha, w), start = attr(object, "ts")$start,
+      frequency = attr(object, "ts")$frequency, names = colnames(object$alpha))
     sd_alpha <- weighted_var(object$alpha, w, method = "moment")
     sd_alpha <- if(m > 1) sqrt(t(apply(sd_alpha, 3, diag))) else matrix(sqrt(sd_alpha), ncol = 1)
     if(return_se) {
@@ -148,8 +193,9 @@ summary.mcmc_output <- function(object, return_se = FALSE, only_theta = FALSE, .
 #' The MCMC algorithms of \code{bssm} use a jump chain representation where we 
 #' store the accepted values and the number of times we stayed in the current value.
 #' Although this saves bit memory and is especially convinient for IS-corrected 
-#' MCMC, sometimes we want to have the usual sample paths. Function \code{expand} 
-#' returns the expanded sample based on the counts.
+#' MCMC, sometimes we want to have the usual sample paths. Function \code{expand_sample} 
+#' returns the expanded sample based on the counts. Note that for IS-corrected output the expanded 
+#' sample corresponds to the approximate posterior.
 #' 
 #' @param x Output from \code{\link{run_mcmc}}.
 #' @param variable Expand parameters \code{"theta"} or states \code{"state"}.
@@ -159,6 +205,9 @@ summary.mcmc_output <- function(object, return_se = FALSE, only_theta = FALSE, .
 #' @param ... Ignored.
 #' @export
 expand_sample <- function(x, variable = "theta", times, states, by_states = TRUE) {
+  
+  if (x$mcmc_type %in% paste0("is", 1:3)) 
+    warning("Input is based on a IS-weighted MCMC, the results correspond to the approximate posteriors.")
   if(variable == "theta") {
     out <- apply(x$theta, 2, rep, times = x$counts)
   } else {

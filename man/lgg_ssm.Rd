@@ -6,25 +6,16 @@
 \usage{
 lgg_ssm(y, Z, H, T, R, a1, P1, theta, obs_intercept, state_intercept,
   known_params = NA, known_tv_params = matrix(NA), n_states, n_etas,
-  log_prior_pdf, state_names = paste0("state", 1:n_states))
+  log_prior_pdf, time_varying = rep(TRUE, 6), state_names = paste0("state",
+  1:n_states))
 }
 \arguments{
 \item{y}{Observations as multivariate time series (or matrix) of length \eqn{n}.}
 
-\item{Z, H, T, R}{An external pointers for the C++ functions which
+\item{Z, H, T, R, a1, P1, obs_intercept, state_intercept}{An external pointers for the C++ functions which
 define the corresponding model functions.}
 
-\item{a1}{Prior mean for the initial state as a vector of length m.}
-
-\item{P1}{Prior covariance matrix for the initial state as m x m matrix.}
-
 \item{theta}{Parameter vector passed to all model functions.}
-
-\item{obs_intercept}{Intercept terms for the observations equation, given as a
-length n vector.}
-
-\item{state_intercept}{Intercept terms for the state equation, given as a
-m times n matrix.}
 
 \item{known_params}{Vector of known parameters passed to all model functions.}
 
@@ -37,24 +28,27 @@ m times n matrix.}
 \item{log_prior_pdf}{An external pointer for the C++ function which
 computes the log-prior density given theta.}
 
+\item{time_varying}{Optional logical vector of length 6, denoting whether the values of
+Z, H, T, R, D and C can vary with respect to time variable.
+If used, can speed up some computations.}
+
 \item{state_names}{Names for the states.}
 }
 \value{
-Object of class \code{nlg_ssm}.
+Object of class \code{llg_ssm}.
 }
 \description{
 Constructs an object of class \code{llg_ssm} by defining the corresponding terms
 of the observation and state equation:
 }
 \details{
-\deqn{y_t = Z(t, \alpha_t, \theta) + H(t, \theta) \epsilon_t, (\textrm{observation equation})}
-\deqn{\alpha_{t+1} = T(t, \alpha_t, \theta) + R(t, \theta)\eta_t, (\textrm{transition equation})}
+\deqn{y_t = D(t,\theta) + Z(t,\theta)  \alpha_t + H(t, \theta) \epsilon_t, (\textrm{observation equation})}
+\deqn{\alpha_{t+1} = C(t,\theta) + T(t, \theta) \alpha_t + R(t, \theta)\eta_t, (\textrm{transition equation})}
 
 where \eqn{\epsilon_t \sim N(0, I_p)}, \eqn{\eta_t \sim N(0, I_m)} and
-\eqn{\alpha_1 \sim N(a_1, P_1)} independently of each other, and functions
-\eqn{Z, H, T, R} can depend on \eqn{\alpha_t} and parameter vector \eqn{\theta}.
+\eqn{\alpha_1 \sim N(a_1, P_1)} independently of each other.
 
 Compared to other models, these general models need a bit more effort from
 the user, as you must provide the several small C++ snippets which define the
-model structure. See examples in ZZZ.
+model structure. See examples in the vignette.
 }

@@ -478,12 +478,10 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
       obs(t) = 0;
     }
     
-    if(t < (n - 1)) {
-      at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
-      arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
-      arma::mat Rt = R_fn(t, att.col(t), theta, known_params, known_tv_params);
-      Pt.slice(t + 1) = Tg * Ptt * Tg.t() + Rt * Rt.t();
-    }
+    at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
+    arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
+    arma::mat Rt = R_fn(t, att.col(t), theta, known_params, known_tv_params);
+    Pt.slice(t + 1) = Tg * Ptt * Tg.t() + Rt * Rt.t();
   }
   
   
@@ -510,7 +508,7 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
   
   at.col(0) = a1_fn(theta, known_params);
   
-  arma::cube Pt(m, m, n);
+  arma::cube Pt(m, m, n + 1);
   
   Pt.slice(0) = P1_fn(theta, known_params);
   
@@ -596,12 +594,12 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
       att.col(t) = at.col(t);
       obs(t) = 0;
     }
-    if (t < (n - 1)) {
-      at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
-      arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
-      arma::mat Rt = R_fn(t, att.col(t), theta, known_params, known_tv_params);
-      Pt.slice(t + 1) = Tg * Ptt * Tg.t() + Rt * Rt.t();
-    }
+    
+    at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
+    arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
+    arma::mat Rt = R_fn(t, att.col(t), theta, known_params, known_tv_params);
+    Pt.slice(t + 1) = Tg * Ptt * Tg.t() + Rt * Rt.t();
+    
   }
   
   
@@ -794,7 +792,7 @@ arma::mat nlg_ssm::approximate(mgg_ssm& approx_model,
   
 
   //check model
-  arma::mat mode_estimate = approx_model.fast_smoother();
+  arma::mat mode_estimate = approx_model.fast_smoother().head_cols(n);
   if (!arma::is_finite(mode_estimate)) {
     return mode_estimate;
   }
@@ -831,7 +829,7 @@ arma::mat nlg_ssm::approximate(mgg_ssm& approx_model,
     approx_model.compute_RR();
     
     // compute new value of mode
-    arma::mat mode_estimate_new = approx_model.fast_smoother();
+    arma::mat mode_estimate_new = approx_model.fast_smoother().head_cols(n);
     double ll_new = log_signal_pdf(mode_estimate_new);
     abs_diff = ll_new - ll;
     rel_diff = abs_diff / std::abs(ll);
@@ -1004,9 +1002,9 @@ double nlg_ssm::psi_filter(const mgg_ssm& approx_model,
   const unsigned int nsim, arma::cube& alpha, arma::mat& weights,
   arma::umat& indices) {
   
-  arma::mat alphahat(m, n);
-  arma::cube Vt(m, m, n);
-  arma::cube Ct(m, m, n);
+  arma::mat alphahat(m, n + 1);
+  arma::cube Vt(m, m, n + 1);
+  arma::cube Ct(m, m, n + 1);
   approx_model.smoother_ccov(alphahat, Vt, Ct);
   if (!Vt.is_finite() || !Ct.is_finite()) {
     return -std::numeric_limits<double>::infinity();
@@ -1042,7 +1040,7 @@ double nlg_ssm::psi_filter(const mgg_ssm& approx_model,
     loglik = approx_loglik;
   }
   
-  for (unsigned int t = 0; t < (n - 1); t++) {
+  for (unsigned int t = 0; t < n; t++) {
     arma::vec r(nsim);
     for (unsigned int i = 0; i < nsim; i++) {
       r(i) = unif(engine);
@@ -1063,10 +1061,8 @@ double nlg_ssm::psi_filter(const mgg_ssm& approx_model,
         Ct.slice(t + 1) * (alphatmp.col(i) - alphahat.col(t)) + Vt.slice(t + 1) * um;
     }
     
-    if(arma::is_finite(y(t + 1))) {
+    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
       
-      // weights.col(t + 1) =
-      //  exp(log_weights(approx_model, t + 1, alpha) - scales(t + 1));
       weights.col(t + 1) = log_weights(approx_model, t + 1, alpha, alphatmp);
       double max_weight = weights.col(t+1).max();
       weights.col(t+1) = arma::exp(weights.col(t+1) - max_weight);
@@ -1131,7 +1127,7 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
     weights.col(0).ones();
     normalized_weights.fill(1.0 / nsim);
   }
-  for (unsigned int t = 0; t < (n - 1); t++) {
+  for (unsigned int t = 0; t < n; t++) {
     
     arma::vec r(nsim);
     for (unsigned int i = 0; i < nsim; i++) {
@@ -1155,7 +1151,7 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
         R_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) * uk;
     }
     
-    if(arma::is_finite(y(t + 1))) {
+    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       
       double max_weight = weights.col(t + 1).max();
@@ -1167,108 +1163,6 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
         return -std::numeric_limits<double>::infinity();
       }
       loglik += max_weight + std::log(sum_weights / nsim);
-    } else {
-      weights.col(t + 1).ones();
-      normalized_weights.fill(1.0/nsim);
-    }
-  }
-  return loglik;
-}
-
-
-double nlg_ssm::aux_filter(const unsigned int nsim, arma::cube& alpha,
-  arma::mat& weights, arma::umat& indices) {
-  
-  arma::vec a1 = a1_fn(theta, known_params);
-  arma::mat P1 = P1_fn(theta, known_params);
-  arma::mat L_P1 = psd_chol(P1);
-  std::normal_distribution<> normal(0.0, 1.0);
-  for (unsigned int i = 0; i < nsim; i++) {
-    arma::vec um(m);
-    for(unsigned int j = 0; j < m; j++) {
-      um(j) = normal(engine);
-    }
-    alpha.slice(i).col(0) = a1 + L_P1 * um;
-    
-  }
-  
-  std::uniform_real_distribution<> unif(0.0, 1.0);
-  arma::vec normalized_weights(nsim);
-  double loglik = 0.0;
-  
-  if(arma::is_finite(y(0))) {
-    weights.col(0) = log_obs_density(0, alpha);
-    double max_weight = weights.col(0).max();
-    weights.col(0) = arma::exp(weights.col(0) - max_weight);
-    double sum_weights = arma::accu(weights.col(0));
-    
-    if(sum_weights > 0.0){
-      normalized_weights = weights.col(0) / sum_weights;
-    } else {
-      return -std::numeric_limits<double>::infinity();
-    }
-    loglik = max_weight + std::log(sum_weights / nsim);
-  } else {
-    weights.col(0).ones();
-    normalized_weights.fill(1.0 / nsim);
-  }
-  
-  for (unsigned int t = 0; t < (n - 1); t++) {
-    
-    arma::vec r(nsim);
-    for (unsigned int i = 0; i < nsim; i++) {
-      r(i) = unif(engine);
-    }
-    
-    arma::uvec indices_init = stratified_sample(normalized_weights, r, nsim);
-    
-    arma::mat alphatmp_init(m, nsim);
-    arma::vec aux_weights(nsim);
-    for (unsigned int i = 0; i < nsim; i++) {
-      alphatmp_init.col(i) = alpha.slice(indices_init(i)).col(t);
-      aux_weights(i) = log_obs_density(t+1, 
-        T_fn(t, alphatmp_init.col(i), theta, known_params, known_tv_params));
-    }
-    
-    double max_aux_weight = aux_weights.max();
-    arma::vec normalized_aux_weights = arma::exp(aux_weights-max_aux_weight);
-    double sum_aux_weights = arma::accu(normalized_aux_weights);
-    normalized_aux_weights /= sum_aux_weights;
-    for (unsigned int i = 0; i < nsim; i++) {
-      r(i) = unif(engine);
-    }
-    indices.col(t) = stratified_sample(normalized_aux_weights, r, nsim);
-    
-    arma::mat alphatmp(m, nsim);
-    arma::vec sampled_weights(nsim);
-    for (unsigned int i = 0; i < nsim; i++) {
-      alphatmp.col(i) = alphatmp_init.col(indices(i, t));
-      sampled_weights(i) = aux_weights(indices(i, t));
-      indices(i, t) = indices_init(indices(i, t));
-    }
-    
-    for (unsigned int i = 0; i < nsim; i++) {
-      arma::vec uk(k);
-      for(unsigned int j = 0; j < k; j++) {
-        uk(j) = normal(engine);
-      }
-      alpha.slice(i).col(t + 1) = T_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) + 
-        R_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) * uk;
-    }
-    
-    if(arma::is_finite(y(t + 1))) {
-      weights.col(t + 1) = log_obs_density(t + 1, alpha) - sampled_weights;
-      
-      double max_weight = weights.col(t + 1).max();
-      weights.col(t + 1) = arma::exp(weights.col(t + 1) - max_weight);
-      double sum_weights = arma::accu(weights.col(t + 1));
-      if(sum_weights > 0.0){
-        normalized_weights = weights.col(t + 1) / sum_weights;
-      } else {
-        return -std::numeric_limits<double>::infinity();
-      }
-      loglik += max_weight + std::log(sum_weights / nsim) + std::log(sum_aux_weights / nsim) +
-        max_aux_weight;
     } else {
       weights.col(t + 1).ones();
       normalized_weights.fill(1.0/nsim);
@@ -1332,7 +1226,7 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
     normalized_weights.fill(1.0 / nsim);
   }
   
-  for (unsigned int t = 0; t < (n - 1); t++) {
+  for (unsigned int t = 0; t < n; t++) {
     
     arma::vec r(nsim);
     for (unsigned int i = 0; i < nsim; i++) {
@@ -1363,7 +1257,7 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
       }
       alpha.slice(i).col(t + 1) = att.col(i) + Ptt.slice(i) * um;
     }
-    if(arma::is_finite(y(t + 1))) {
+    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       for (unsigned int i = 0; i < nsim; i++) {
         arma::mat Rt = R_fn(t,  alphatmp.col(i), theta, known_params, known_tv_params);

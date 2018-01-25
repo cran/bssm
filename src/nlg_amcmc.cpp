@@ -9,19 +9,18 @@
 #include "rep_mat.h"
 #include "filter_smoother.h"
 
-nlg_amcmc::nlg_amcmc(const arma::uvec& prior_distributions, 
-  const arma::mat& prior_parameters, const unsigned int n_iter, 
+nlg_amcmc::nlg_amcmc(const unsigned int n_iter, 
   const unsigned int n_burnin, const unsigned int n_thin, const unsigned int n, 
   const unsigned int m, const double target_acceptance, const double gamma, 
   const arma::mat& S, const bool store_modes) :
-  mcmc(prior_distributions, prior_parameters, n_iter, n_burnin, n_thin, n, m,
+  mcmc(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, true),
     weight_storage(arma::vec(n_samples, arma::fill::zeros)),
     approx_loglik_storage(arma::vec(n_samples)),
     scales_storage(arma::vec(n_samples)),
     prior_storage(arma::vec(n_samples)),
     store_modes(store_modes),
-    mode_storage(arma::cube(m, n, n_samples * store_modes)){
+    mode_storage(arma::cube(m, n + 1, n_samples * store_modes)){
 }
 
 void nlg_amcmc::trim_storage() {
@@ -133,7 +132,7 @@ void nlg_amcmc::approx_mcmc(nlg_ssm model, const unsigned int max_iter,
       mgg_ssm approx_model = model.approximate(mode_estimate_prop, max_iter, 
         conv_tol, iekf_iter);
       double loglik_prop;
-      double sum_scales_prop;
+      double sum_scales_prop = 0.0; // initialize in order to get rid of false warning
       if(!is_finite(mode_estimate_prop)) {
         loglik_prop = -std::numeric_limits<double>::infinity();
       } else {
@@ -294,15 +293,15 @@ void nlg_amcmc::is_correction_bsf(nlg_ssm model, const unsigned int nsim_states,
       nsim *= count_storage(i);
     }
     
-    arma::cube alpha_i(model.m, model.n, nsim);
-    arma::mat weights_i(nsim, model.n);
-    arma::umat indices(nsim, model.n - 1);
+    arma::cube alpha_i(model.m, model.n + 1, nsim);
+    arma::mat weights_i(nsim, model.n + 1);
+    arma::umat indices(nsim, model.n);
     
     double loglik = model.bsf_filter(nsim, alpha_i, weights_i, indices);
     if(arma::is_finite(loglik)) {
       weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
       filter_smoother(alpha_i, indices);
-      arma::vec w = weights_i.col(model.n - 1);
+      arma::vec w = weights_i.col(model.n);
       std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
       alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
     } else {
@@ -321,15 +320,15 @@ for (unsigned int i = 0; i < theta_storage.n_cols; i++) {
     nsim *= count_storage(i);
   }
   
-  arma::cube alpha_i(model.m, model.n, nsim);
-  arma::mat weights_i(nsim, model.n);
-  arma::umat indices(nsim, model.n - 1);
+  arma::cube alpha_i(model.m, model.n + 1, nsim);
+  arma::mat weights_i(nsim, model.n + 1);
+  arma::umat indices(nsim, model.n);
   
   double loglik = model.bsf_filter(nsim, alpha_i, weights_i, indices);
   if(arma::is_finite(loglik)) {
     weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
     filter_smoother(alpha_i, indices);
-    arma::vec w = weights_i.col(model.n - 1);
+    arma::vec w = weights_i.col(model.n);
     std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
     alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
   } else {
@@ -397,16 +396,16 @@ void nlg_amcmc::is_correction_psi(nlg_ssm model, const unsigned int nsim_states,
       nsim *= count_storage(i);
     }
     
-    arma::cube alpha_i(model.m, model.n, nsim);
-    arma::mat weights_i(nsim, model.n);
-    arma::umat indices(nsim, model.n - 1);
+    arma::cube alpha_i(model.m, model.n + 1, nsim);
+    arma::mat weights_i(nsim, model.n + 1);
+    arma::umat indices(nsim, model.n);
     
     double loglik = model.psi_filter(approx_model, 0.0, nsim, alpha_i, weights_i, indices);
     if(arma::is_finite(loglik)) {
       weight_storage(i) = std::exp(loglik);
       
       filter_smoother(alpha_i, indices);
-      arma::vec w = weights_i.col(model.n - 1);
+      arma::vec w = weights_i.col(model.n);
       std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
       alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t(); 
     } else {
@@ -461,16 +460,16 @@ for (unsigned int i = 0; i < theta_storage.n_cols; i++) {
     nsim *= count_storage(i);
   }
   
-  arma::cube alpha_i(model.m, model.n, nsim);
-  arma::mat weights_i(nsim, model.n);
-  arma::umat indices(nsim, model.n - 1);
+  arma::cube alpha_i(model.m, model.n + 1, nsim);
+  arma::mat weights_i(nsim, model.n + 1);
+  arma::umat indices(nsim, model.n);
   
   double loglik = model.psi_filter(approx_model, 0.0, nsim, alpha_i, weights_i, indices);
   if(arma::is_finite(loglik)) {
     weight_storage(i) = std::exp(loglik);
     
     filter_smoother(alpha_i, indices);
-    arma::vec w = weights_i.col(model.n - 1);
+    arma::vec w = weights_i.col(model.n);
     std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
     alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t(); 
   } else {
@@ -605,7 +604,7 @@ void nlg_amcmc::state_ekf_summary(nlg_ssm& model,
   arma::mat alphahat_i = alphahat;
   arma::cube Vt_i = Vt;
   
-  arma::cube Valpha(model.m, model.m, model.n, arma::fill::zeros);
+  arma::cube Valpha(model.m, model.m, model.n + 1, arma::fill::zeros);
   
   for (unsigned int i = 1; i < theta_storage.n_cols; i++) {
     
@@ -615,7 +614,7 @@ void nlg_amcmc::state_ekf_summary(nlg_ssm& model,
     double tmp = count_storage(i) + sum_w;
     alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
     
-    for (unsigned int t = 0; t < model.n; t++) {
+    for (unsigned int t = 0; t < model.n + 1; t++) {
       Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
     }
     Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;

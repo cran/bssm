@@ -21,7 +21,8 @@ fast_smoother.gssm <- function(object, ...) {
   
   out <- gaussian_fast_smoother(object, model_type = 1L)
   colnames(out) <- names(object$a1)
-  ts(out, start = start(object$y), frequency = frequency(object$y))
+  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
+    frequency = frequency(object$y))
 }
 #' @method fast_smoother bsm
 #' @export
@@ -29,7 +30,8 @@ fast_smoother.bsm <- function(object, ...) {
   
   out <- gaussian_fast_smoother(object, model_type = 2L)
   colnames(out) <- names(object$a1)
-  ts(out, start = start(object$y), frequency = frequency(object$y))
+  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
+    frequency = frequency(object$y))
 }
 #' @method fast_smoother mv_gssm
 #' @export
@@ -37,7 +39,8 @@ fast_smoother.mv_gssm <- function(object, ...) {
   
   out <- gaussian_fast_smoother(object, model_type = -1L)
   colnames(out) <- names(object$a1)
-  ts(out, start = start(object$y), frequency = frequency(object$y))
+  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
+    frequency = frequency(object$y))
 }
 #' @method fast_smoother ngssm
 #' @export
@@ -65,7 +68,10 @@ smoother.gssm <- function(object, ...) {
   
   out <-  gaussian_smoother(object, model_type = 1L)
   colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
-  out$alphahat <- ts(out$alphahat, start = start(object$y), frequency = frequency(object$y))
+  
+  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
+  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
+    start = start(object$y), frequency = frequency(object$y))
   out
 }
 #' @method smoother bsm
@@ -74,7 +80,9 @@ smoother.bsm <- function(object, ...) {
   
   out <- gaussian_smoother(object, model_type = 2L)
   colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
-  out$alphahat <- ts(out$alphahat, start = start(object$y), frequency = frequency(object$y))
+  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
+  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
+    start = start(object$y), frequency = frequency(object$y))
   out
 }
 #' @method smoother lgg_ssm
@@ -85,10 +93,12 @@ smoother.lgg_ssm <- function(object, ...) {
     object$R, object$a1, object$P1, 
     object$theta, object$obs_intercept, object$state_intercept,
     object$log_prior_pdf, object$known_params, 
-    object$known_tv_params,
+    object$known_tv_params, as.integer(object$time_varying), 
     object$n_states, object$n_etas)
   colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- object$state_names
-  out$alphahat <- ts(out$alphahat, start = start(object$y), frequency = frequency(object$y))
+  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
+  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
+    start = start(object$y), frequency = frequency(object$y))
   out
 }
 #' @method smoother ngssm
@@ -132,8 +142,9 @@ ekf_smoother <- function(object, iekf_iter = 0) {
     object$theta, object$log_prior_pdf, object$known_params, 
     object$known_tv_params, object$n_states, object$n_etas, 
     as.integer(object$time_varying), iekf_iter)
-  out$alphahat <- ts(out$alphahat, start = start(object$y), 
-    frequency = frequency(object$y))
+  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
+  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
+    start = start(object$y), frequency = frequency(object$y))
   out
 }
 
@@ -144,7 +155,7 @@ ekf_fast_smoother <- function(object, iekf_iter = 0) {
     object$theta, object$log_prior_pdf, object$known_params, 
     object$known_tv_params, object$n_states, object$n_etas, 
     as.integer(object$time_varying), iekf_iter)
-  ts(out, start = start(object$y), 
+  ts(out[-nrow(out$alphahat), , drop = FALSE], start = start(object$y), 
     frequency = frequency(object$y))
 }
 

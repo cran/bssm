@@ -7,9 +7,10 @@
 #include "nlg_ssm.h"
 #include "lgg_ssm.h"
 #include "ung_ar1.h"
+#include "ugg_ar1.h"
+
 // [[Rcpp::export]]
 Rcpp::List gaussian_mcmc(const Rcpp::List& model_,
-  const arma::uvec prior_types, const arma::mat prior_pars,
   const bool sim_states, const unsigned int n_iter, const unsigned int n_burnin,
   const unsigned int n_thin, const double gamma, const double target_acceptance,
   const arma::mat S, const unsigned int seed, const bool end_ram,
@@ -28,7 +29,7 @@ Rcpp::List gaussian_mcmc(const Rcpp::List& model_,
     n = y.n_rows;
   }
   
-  mcmc mcmc_run(prior_types, prior_pars, n_iter, n_burnin, n_thin, n, m,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, sim_states);
   
   switch (model_type) {
@@ -39,6 +40,11 @@ Rcpp::List gaussian_mcmc(const Rcpp::List& model_,
   } break;
   case 2: {
     ugg_bsm model(clone(model_), seed);
+    mcmc_run.mcmc_gaussian(model, end_ram);
+    if(sim_states) mcmc_run.state_posterior(model, n_threads);
+  } break;
+  case 3: {
+    ugg_ar1 model(clone(model_), seed);
     mcmc_run.mcmc_gaussian(model, end_ram);
     if(sim_states) mcmc_run.state_posterior(model, n_threads);
   } break;
@@ -59,7 +65,6 @@ Rcpp::List gaussian_mcmc(const Rcpp::List& model_,
 }
 // [[Rcpp::export]]
 Rcpp::List gaussian_mcmc_summary(const Rcpp::List& model_,
-  const arma::uvec prior_types, const arma::mat prior_pars,
   const unsigned int n_iter, const unsigned int n_burnin,
   const unsigned int n_thin, const double gamma, const double target_acceptance,
   const arma::mat S, const unsigned int seed, const bool end_ram,
@@ -78,7 +83,7 @@ Rcpp::List gaussian_mcmc_summary(const Rcpp::List& model_,
     n = y.n_rows;
   }
   
-  mcmc mcmc_run(prior_types, prior_pars, n_iter, n_burnin, n_thin, n, m,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, false);
   
   arma::mat alphahat(m, n);
@@ -95,6 +100,11 @@ Rcpp::List gaussian_mcmc_summary(const Rcpp::List& model_,
     mcmc_run.mcmc_gaussian(model, end_ram);
     mcmc_run.state_summary(model, alphahat, Vt);
   } break;
+  case 3: {
+    ugg_ar1 model(clone(model_), seed);
+    mcmc_run.mcmc_gaussian(model, end_ram);
+    mcmc_run.state_summary(model, alphahat, Vt);
+  } break;
   }
   
   return Rcpp::List::create(Rcpp::Named("theta") = mcmc_run.theta_storage.t(),
@@ -105,7 +115,6 @@ Rcpp::List gaussian_mcmc_summary(const Rcpp::List& model_,
 }
 // [[Rcpp::export]]
 Rcpp::List nongaussian_pm_mcmc(const Rcpp::List& model_,
-  const arma::uvec prior_types, const arma::mat prior_pars,
   const unsigned int nsim_states, const unsigned int n_iter,
   const unsigned int n_burnin, const unsigned int n_thin,
   const double gamma, const double target_acceptance, const arma::mat S,
@@ -127,7 +136,7 @@ Rcpp::List nongaussian_pm_mcmc(const Rcpp::List& model_,
     n = y.n_rows;
   }
   
-  mcmc mcmc_run(prior_types, prior_pars, n_iter, n_burnin, n_thin, n, m,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, true);
   
   switch (model_type) {
@@ -207,7 +216,6 @@ Rcpp::List nongaussian_pm_mcmc(const Rcpp::List& model_,
 
 // [[Rcpp::export]]
 Rcpp::List nongaussian_da_mcmc(const Rcpp::List& model_,
-  const arma::uvec prior_types, const arma::mat prior_pars,
   const unsigned int nsim_states, const unsigned int n_iter,
   const unsigned int n_burnin, const unsigned int n_thin, const double gamma,
   const double target_acceptance, const arma::mat S, const unsigned int seed,
@@ -228,7 +236,7 @@ Rcpp::List nongaussian_da_mcmc(const Rcpp::List& model_,
     n = y.n_rows;
   }
   
-  mcmc mcmc_run(prior_types, prior_pars, n_iter, n_burnin, n_thin, n, m,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, true);
   
   switch (model_type) {
@@ -314,7 +322,6 @@ Rcpp::List nongaussian_da_mcmc(const Rcpp::List& model_,
 
 // [[Rcpp::export]]
 Rcpp::List nongaussian_is_mcmc(const Rcpp::List& model_,
-  const arma::uvec prior_types, const arma::mat prior_pars,
   const unsigned int nsim_states, const unsigned int n_iter,
   const unsigned int n_burnin, const unsigned int n_thin, const  double gamma,
   const double target_acceptance, const arma::mat S, const unsigned int seed,
@@ -335,7 +342,7 @@ Rcpp::List nongaussian_is_mcmc(const Rcpp::List& model_,
     n = y.n_rows;
   }
   
-  ung_amcmc mcmc_run(prior_types, prior_pars, n_iter, n_burnin, n_thin, n, m,
+  ung_amcmc mcmc_run(n_iter, n_burnin, n_thin, n, m,
     target_acceptance, gamma, S, true);
   if (nsim_states <= 1) {
     mcmc_run.alpha_storage.zeros();
@@ -473,7 +480,7 @@ Rcpp::List nonlinear_pm_mcmc(const arma::mat& y, SEXP Z, SEXP H,
     *xpfun_a1, *xpfun_P1,  theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
     time_varying, seed);
   
-  mcmc mcmc_run(arma::uvec(theta.n_elem), arma::mat(1,1), n_iter, n_burnin, n_thin, model.n,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, model.n,
     model.m, target_acceptance, gamma, S, true);
   
   switch (simulation_method) {
@@ -521,7 +528,7 @@ Rcpp::List nonlinear_da_mcmc(const arma::mat& y, SEXP Z, SEXP H,
     *xpfun_a1, *xpfun_P1,  theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
     time_varying, seed);
   
-  mcmc mcmc_run(arma::uvec(theta.n_elem), arma::mat(1,1), n_iter, n_burnin, n_thin, model.n,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin, model.n,
     model.m, target_acceptance, gamma, S, true);
   
   
@@ -569,7 +576,7 @@ Rcpp::List nonlinear_ekf_mcmc(const arma::mat& y, SEXP Z, SEXP H,
     *xpfun_a1, *xpfun_P1,  theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
     time_varying, seed);
   
-  nlg_amcmc mcmc_run(arma::uvec(theta.n_elem), arma::mat(1,1), n_iter, n_burnin, n_thin, model.n,
+  nlg_amcmc mcmc_run(n_iter, n_burnin, n_thin, model.n,
     model.m, target_acceptance, gamma, S, false);
   
   mcmc_run.ekf_mcmc(model, end_ram, iekf_iter);
@@ -624,7 +631,7 @@ Rcpp::List nonlinear_is_mcmc(const arma::mat& y, SEXP Z, SEXP H,
     *xpfun_a1, *xpfun_P1,  theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
     time_varying, seed);
   
-  nlg_amcmc mcmc_run(arma::uvec(theta.n_elem), arma::mat(1,1), n_iter, n_burnin, n_thin, model.n,
+  nlg_amcmc mcmc_run(n_iter, n_burnin, n_thin, model.n,
     model.m, target_acceptance, gamma, S, simulation_method == 1);
   
   mcmc_run.approx_mcmc(model, max_iter, conv_tol, end_ram, iekf_iter);
@@ -656,7 +663,7 @@ Rcpp::List general_gaussian_mcmc(const arma::mat& y, SEXP Z, SEXP H,
   const arma::vec& theta,
   SEXP D, SEXP C,
   SEXP log_prior_pdf, const arma::vec& known_params,
-  const arma::mat& known_tv_params,
+  const arma::mat& known_tv_params, const arma::uvec& time_varying,
   const unsigned int n_states, const unsigned int n_etas,
   const unsigned int seed, const unsigned int n_iter,
   const unsigned int n_burnin, const unsigned int n_thin,
@@ -674,10 +681,10 @@ Rcpp::List general_gaussian_mcmc(const arma::mat& y, SEXP Z, SEXP H,
   Rcpp::XPtr<prior_fnPtr> xpfun_prior(log_prior_pdf);
   
   lgg_ssm model(y, *xpfun_Z, *xpfun_H, *xpfun_T, *xpfun_R, *xpfun_a1, *xpfun_P1, 
-    *xpfun_D, *xpfun_C, theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
-    seed);
+    *xpfun_D, *xpfun_C, theta, *xpfun_prior, known_params, known_tv_params, 
+    time_varying, n_states, n_etas, seed);
   
-  mcmc mcmc_run(arma::uvec(theta.n_elem), arma::mat(1,1), n_iter, n_burnin, n_thin,
+  mcmc mcmc_run(n_iter, n_burnin, n_thin,
     model.n, model.m, target_acceptance, gamma, S, true);
   
   mcmc_run.mcmc_gaussian(model, end_ram);

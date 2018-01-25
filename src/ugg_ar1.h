@@ -1,14 +1,13 @@
-#ifndef UNG_SVM_H
-#define UNG_SVM_H
+#ifndef UGG_AR1_H
+#define UGG_AR1_H
 
-#include "ung_ssm.h"
+#include "ugg_ssm.h"
 
-class ung_svm: public ung_ssm {
+class ugg_ar1: public ugg_ssm {
   
 public:
-
-  ung_svm(const Rcpp::List& model, unsigned int seed);
-
+  
+  ugg_ar1(const Rcpp::List& model, const unsigned int seed);
   
   // update model given the parameters theta
   void update_model(const arma::vec& new_theta);
@@ -16,7 +15,8 @@ public:
   double log_proposal_ratio(const arma::vec& new_theta, const arma::vec& old_theta) const;
   
 private:
-  unsigned int svm_type;
+  const bool mu_est;
+  const bool sd_y_est;
 };
 
 #endif

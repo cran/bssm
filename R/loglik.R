@@ -7,7 +7,8 @@
 #' See vignette for details.
 #' @param method Method for computing the log-likelihood of non-Gaussian/non-linear model. 
 #' Method \code{"spdk"} uses the importance sampling approach by 
-#' Shephard and Pitt (1997), and Durbin and Koopman (1997). \code{"psi"} (the default for linear-Gaussian signals) uses psi-auxiliary filter and 
+#' Shephard and Pitt (1997), and Durbin and Koopman (1997). 
+#' \code{"psi"} (the default for linear-Gaussian signals) uses psi-auxiliary filter and 
 #' \code{"bsf"} bootstrap filter (default for general non-linear Gaussian models).
 #' @param seed Seed for the random number generator. Compared to other functions of the package, the
 #' default seed is fixed (as 1) in order to work properly in numerical optimization algorithms.
@@ -93,4 +94,17 @@ logLik.sde_ssm <- function(object, nsim_states, L, seed = 1, ...) {
     object$drift, object$diffusion, object$ddiffusion, 
     object$prior_pdf, object$obs_pdf, object$theta, 
     nsim_states, L, seed)
+}
+
+
+#' @method logLik lgg_ssm
+#' @export
+logLik.lgg_ssm <- function(object, ...) {
+  
+  general_gaussian_loglik(t(object$y), object$Z, object$H, object$T, 
+    object$R, object$a1, object$P1, 
+    object$theta, object$obs_intercept, object$state_intercept, 
+    object$log_prior_pdf, object$known_params, 
+    object$known_tv_params, as.integer(object$time_varying), 
+    object$n_states, object$n_etas)
 }

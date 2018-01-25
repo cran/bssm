@@ -112,12 +112,6 @@ double nonlinear_loglik(const arma::mat& y, SEXP Z, SEXP H,
     loglik = model.bsf_filter(nsim_states, alpha, weights, indices);
     
   } break;
-  case 3: {
-    loglik = model.aux_filter(nsim_states, alpha, weights, indices);
-  } break;
-  case 4: {
-    loglik = model.aux_filter(nsim_states, alpha, weights, indices);
-  } break;
   default: loglik = -std::numeric_limits<double>::infinity();
   }
   
@@ -130,7 +124,7 @@ double general_gaussian_loglik(const arma::mat& y, SEXP Z, SEXP H,
   const arma::vec& theta, 
   SEXP D, SEXP C,
   SEXP log_prior_pdf, const arma::vec& known_params, 
-  const arma::mat& known_tv_params,
+  const arma::mat& known_tv_params, const arma::uvec& time_varying,
   const unsigned int n_states, const unsigned int n_etas) {
   
   Rcpp::XPtr<lmat_fnPtr> xpfun_Z(Z);
@@ -144,8 +138,8 @@ double general_gaussian_loglik(const arma::mat& y, SEXP Z, SEXP H,
   Rcpp::XPtr<prior_fnPtr> xpfun_prior(log_prior_pdf);
   
   lgg_ssm model(y, *xpfun_Z, *xpfun_H, *xpfun_T, *xpfun_R, *xpfun_a1, *xpfun_P1, 
-    *xpfun_D, *xpfun_C, theta, *xpfun_prior, known_params, known_tv_params, n_states, n_etas,
-    1);
+    *xpfun_D, *xpfun_C, theta, *xpfun_prior, known_params, known_tv_params, 
+    time_varying, n_states, n_etas, 1);
   mgg_ssm mgg_model = model.build_mgg();
   
   return mgg_model.log_likelihood();

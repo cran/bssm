@@ -13,8 +13,6 @@ protected:
   
   virtual void trim_storage();
   
-  const arma::uvec prior_distributions;
-  const arma::mat prior_parameters;
   const unsigned int n_iter;
   const unsigned int n_burnin;
   const unsigned int n_thin;
@@ -27,17 +25,10 @@ protected:
 public:
   
   // constructor
-  mcmc(const arma::uvec& prior_distributions, const arma::mat& prior_parameters,
-    const unsigned int n_iter, const unsigned int n_burnin, 
+  mcmc(const unsigned int n_iter, const unsigned int n_burnin, 
     const unsigned int n_thin, const unsigned int n, const unsigned int m,
     const double target_acceptance, const double gamma, const arma::mat& S, 
     const bool store_states = true);
-  
-  // compute the prior pdf
-  virtual double log_prior_pdf(const arma::vec& theta) const;
-  
-  // compute the log-ratio of proposals
-  // double proposal(const arma::vec& theta, const arma::vec& theta_proposal) const;
   
   // sample states given theta
   template <class T>
@@ -93,7 +84,7 @@ public:
   void pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram, const unsigned int nsim_states,
     const unsigned int L);
   void da_mcmc_bsf_sde(sde_ssm model, const bool end_ram, const unsigned int nsim_states,
-    const unsigned int L_c, const unsigned int L_f, const bool coupled, const bool target_full = false);
+    const unsigned int L_c, const unsigned int L_f, const bool target_full = false);
   
   arma::vec posterior_storage;
   arma::mat theta_storage;

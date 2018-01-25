@@ -3,6 +3,7 @@
 \name{run_mcmc.gssm}
 \alias{run_mcmc.gssm}
 \alias{run_mcmc.bsm}
+\alias{run_mcmc.ar1}
 \alias{run_mcmc.lgg_ssm}
 \title{Bayesian Inference of Linear-Gaussian State Space Models}
 \usage{
@@ -12,6 +13,11 @@
   seed = sample(.Machine$integer.max, size = 1), ...)
 
 \method{run_mcmc}{bsm}(object, n_iter, sim_states = TRUE, type = "full",
+  n_burnin = floor(n_iter/2), n_thin = 1, gamma = 2/3,
+  target_acceptance = 0.234, S, end_adaptive_phase = TRUE, n_threads = 1,
+  seed = sample(.Machine$integer.max, size = 1), ...)
+
+\method{run_mcmc}{ar1}(object, n_iter, sim_states = TRUE, type = "full",
   n_burnin = floor(n_iter/2), n_thin = 1, gamma = 2/3,
   target_acceptance = 0.234, S, end_adaptive_phase = TRUE, n_threads = 1,
   seed = sample(.Machine$integer.max, size = 1), ...)
@@ -26,14 +32,12 @@
 
 \item{n_iter}{Number of MCMC iterations.}
 
-\item{sim_states}{Simulate states of Gaussian state space models. Default is \code{TRUE}.}
+\item{sim_states}{Simulate states of Gaussian state space models. Default is \code{TRUE}. 
+Ignored if argument \code{type = "summary"}.}
 
 \item{type}{Type of output. Default is \code{"full"}, which returns
-samples from the posterior \eqn{p(\alpha, \theta}. Option
-\code{"parameters"} samples only parameters \eqn{\theta} (which includes the
-regression coefficients \eqn{\beta}). This can be used for faster inference of
-\eqn{\theta} only, or as an preliminary run for obtaining
-initial values for \code{S}. Option \code{"summary"} does not simulate
+samples from the posterior \eqn{p(\alpha, \theta)}. 
+ Option \code{"summary"} does not simulate
 states directly but computes the posterior means and variances of states using
 fast Kalman smoothing. This is slightly faster, memory  efficient and
 more accurate than calculations based on simulation smoother.
@@ -55,7 +59,9 @@ between 0 and 1 (not checked).}
 
 \item{S}{Initial value for the lower triangular matrix of RAM
 algorithm, so that the covariance matrix of the Gaussian proposal
-distribution is \eqn{SS'}.}
+distribution is \eqn{SS'}. Note that for some parameters 
+(currently the standard deviation and dispersion parameters of bsm models) the sampling
+is done for transformed parameters with internal_theta = log(1 + theta).}
 
 \item{end_adaptive_phase}{If \code{TRUE} (default), $S$ is held fixed after the burnin period.}
 

@@ -1,11 +1,13 @@
-#include "ung_ar1.h"
+#include "ugg_ar1.h"
 
 // from Rcpp::List
-ung_ar1::ung_ar1(const Rcpp::List& model, const unsigned int seed) :
-  ung_ssm(model, seed), mu_est(Rcpp::as<bool>(model["mu_est"])) {
+ugg_ar1::ugg_ar1(const Rcpp::List& model, const unsigned int seed) :
+  ugg_ssm(model, seed), 
+  mu_est(Rcpp::as<bool>(model["mu_est"])), 
+  sd_y_est(Rcpp::as<bool>(model["sd_y_est"])) {
 }
 
-void ung_ar1::update_model(const arma::vec& new_theta) {
+void ugg_ar1::update_model(const arma::vec& new_theta) {
   
   
   T(0, 0, 0) = new_theta(0);
@@ -18,8 +20,9 @@ void ung_ar1::update_model(const arma::vec& new_theta) {
   
   compute_RR();
   
-  if(phi_est) {
-    phi = new_theta(2 + mu_est);
+  if(sd_y_est) {
+    H(0) = new_theta(2 + mu_est);
+    HH(0) = H(0);
   }
   
   if(xreg.n_cols > 0) {
@@ -29,7 +32,7 @@ void ung_ar1::update_model(const arma::vec& new_theta) {
   theta = new_theta;
 }
 
-double ung_ar1::log_prior_pdf(const arma::vec& x) const {
+double ugg_ar1::log_prior_pdf(const arma::vec& x) const {
   
   double log_prior = 0.0;
   
@@ -55,7 +58,7 @@ double ung_ar1::log_prior_pdf(const arma::vec& x) const {
   return log_prior;
 }
 
-double ung_ar1::log_proposal_ratio(const arma::vec& new_theta, const arma::vec& old_theta) const {
+double ugg_ar1::log_proposal_ratio(const arma::vec& new_theta, const arma::vec& old_theta) const {
   return 0.0;
 }
 

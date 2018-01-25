@@ -1,3 +1,6 @@
+// A template for building a general non-linear Gaussian state space model
+// Here we define an univariate growth model (see vignette growth_model)
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::interfaces(r, cpp)]]
@@ -95,8 +98,6 @@ arma::mat T_gn(const unsigned int t, const arma::vec& alpha, const arma::vec& th
   return Tg;
 }
 
-
-
 // # log-prior pdf for theta
 // [[Rcpp::export]]
 double log_prior_pdf(const arma::vec& theta) {
@@ -117,28 +118,31 @@ double log_prior_pdf(const arma::vec& theta) {
 // you don't alter the function names above
 // [[Rcpp::export]]
 Rcpp::List create_xptrs() {
+  
   // typedef for a pointer of nonlinear function of model equation returning vec (T, Z)
-  typedef arma::vec (*vec_fnPtr)(const unsigned int t, const arma::vec& alpha, const arma::vec& theta, 
-    const arma::vec& known_params, const arma::mat& known_tv_params);
-  // typedef for a pointer of nonlinear function of model equation returning mat (Tg, Zg, H, R)
-  typedef arma::mat (*mat_fnPtr)(const unsigned int t, const arma::vec& alpha, const arma::vec& theta, 
-    const arma::vec& known_params, const arma::mat& known_tv_params);
-  // typedef for a pointer of nonlinear function of model equation returning vec (a1)
-  typedef arma::vec (*vec_initfnPtr)(const arma::vec& theta, const arma::vec& known_params);
-  // typedef for a pointer of nonlinear function of model equation returning mat (P1)
-  typedef arma::mat (*mat_initfnPtr)(const arma::vec& theta, const arma::vec& known_params);
+  typedef arma::vec (*nvec_fnPtr)(const unsigned int t, const arma::vec& alpha, 
+    const arma::vec& theta, const arma::vec& known_params, const arma::mat& known_tv_params);
+  // typedef for a pointer of nonlinear function returning mat (Tg, Zg, H, R)
+  typedef arma::mat (*nmat_fnPtr)(const unsigned int t, const arma::vec& alpha, 
+    const arma::vec& theta, const arma::vec& known_params, const arma::mat& known_tv_params);
+  
+  // typedef for a pointer returning a1
+  typedef arma::vec (*a1_fnPtr)(const arma::vec& theta, const arma::vec& known_params);
+  // typedef for a pointer returning P1
+  typedef arma::mat (*P1_fnPtr)(const arma::vec& theta, const arma::vec& known_params);
   // typedef for a pointer of log-prior function
-  typedef double (*double_fnPtr)(const arma::vec&);
+  typedef double (*prior_fnPtr)(const arma::vec&);
   
   return Rcpp::List::create(
-    Rcpp::Named("a1_fn") = Rcpp::XPtr<vec_initfnPtr>(new vec_initfnPtr(&a1_fn)),
-    Rcpp::Named("P1_fn") = Rcpp::XPtr<mat_initfnPtr>(new mat_initfnPtr(&P1_fn)),
-    Rcpp::Named("Z_fn") = Rcpp::XPtr<vec_fnPtr>(new vec_fnPtr(&Z_fn)),
-    Rcpp::Named("H_fn") = Rcpp::XPtr<mat_fnPtr>(new mat_fnPtr(&H_fn)),
-    Rcpp::Named("T_fn") = Rcpp::XPtr<vec_fnPtr>(new vec_fnPtr(&T_fn)),
-    Rcpp::Named("R_fn") = Rcpp::XPtr<mat_fnPtr>(new mat_fnPtr(&R_fn)),
-    Rcpp::Named("Z_gn") = Rcpp::XPtr<mat_fnPtr>(new mat_fnPtr(&Z_gn)),
-    Rcpp::Named("T_gn") = Rcpp::XPtr<mat_fnPtr>(new mat_fnPtr(&T_gn)),
+    Rcpp::Named("a1_fn") = Rcpp::XPtr<a1_fnPtr>(new a1_fnPtr(&a1_fn)),
+    Rcpp::Named("P1_fn") = Rcpp::XPtr<P1_fnPtr>(new P1_fnPtr(&P1_fn)),
+    Rcpp::Named("Z_fn") = Rcpp::XPtr<nvec_fnPtr>(new nvec_fnPtr(&Z_fn)),
+    Rcpp::Named("H_fn") = Rcpp::XPtr<nmat_fnPtr>(new nmat_fnPtr(&H_fn)),
+    Rcpp::Named("T_fn") = Rcpp::XPtr<nvec_fnPtr>(new nvec_fnPtr(&T_fn)),
+    Rcpp::Named("R_fn") = Rcpp::XPtr<nmat_fnPtr>(new nmat_fnPtr(&R_fn)),
+    Rcpp::Named("Z_gn") = Rcpp::XPtr<nmat_fnPtr>(new nmat_fnPtr(&Z_gn)),
+    Rcpp::Named("T_gn") = Rcpp::XPtr<nmat_fnPtr>(new nmat_fnPtr(&T_gn)),
     Rcpp::Named("log_prior_pdf") = 
-      Rcpp::XPtr<double_fnPtr>(new double_fnPtr(&log_prior_pdf)));
+      Rcpp::XPtr<prior_fnPtr>(new prior_fnPtr(&log_prior_pdf)));
+  
 }

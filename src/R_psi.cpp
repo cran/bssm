@@ -11,30 +11,27 @@
 
 // [[Rcpp::export]]
 Rcpp::List psi_smoother(const Rcpp::List& model_, const arma::vec mode_estimate,
-  const unsigned int nsim_states, const unsigned int smoothing_type,
-  const unsigned int seed, const unsigned int max_iter, const double conv_tol,
+  const unsigned int nsim_states, const unsigned int seed, 
+  const unsigned int max_iter, const double conv_tol,
   const int model_type) {
   
   switch (model_type) {
   case 1: {
   ung_ssm model(clone(model_), seed);
   
-  arma::cube alpha(model.m, model.n, nsim_states);
-  arma::mat weights(nsim_states, model.n);
-  arma::umat indices(nsim_states, model.n - 1);
+  arma::cube alpha(model.m, model.n + 1, nsim_states);
+  arma::mat weights(nsim_states, model.n + 1);
+  arma::umat indices(nsim_states, model.n);
   
   double loglik = compute_ung_psi_filter(model, nsim_states, 
     mode_estimate, max_iter, conv_tol, alpha, weights, indices);
   
-  arma::mat alphahat(model.m, model.n);
-  arma::cube Vt(model.m, model.m, model.n);
+  arma::mat alphahat(model.m, model.n + 1);
+  arma::cube Vt(model.m, model.m, model.n + 1);
   
-  if (smoothing_type == 1) {
-    filter_smoother(alpha, indices);
-    running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n - 1));
-  } else {
-    Rcpp::stop("Forward-backward smoothing with psi-filter is not yet implemented.");
-  }
+  filter_smoother(alpha, indices);
+  running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n));
+
   arma::inplace_trans(alphahat);
   return Rcpp::List::create(
     Rcpp::Named("alphahat") = alphahat, Rcpp::Named("Vt") = Vt, 
@@ -43,22 +40,19 @@ Rcpp::List psi_smoother(const Rcpp::List& model_, const arma::vec mode_estimate,
 } break;
   case 2: {
     ung_bsm model(clone(model_), seed);
-    arma::cube alpha(model.m, model.n, nsim_states);
-    arma::mat weights(nsim_states, model.n);
-    arma::umat indices(nsim_states, model.n - 1);
+    arma::cube alpha(model.m, model.n + 1, nsim_states);
+    arma::mat weights(nsim_states, model.n + 1);
+    arma::umat indices(nsim_states, model.n);
     
     double loglik = compute_ung_psi_filter(model, nsim_states, 
       mode_estimate, max_iter, conv_tol, alpha, weights, indices);
     
-    arma::mat alphahat(model.m, model.n);
-    arma::cube Vt(model.m, model.m, model.n);
+    arma::mat alphahat(model.m, model.n + 1);
+    arma::cube Vt(model.m, model.m, model.n + 1);
     
-    if (smoothing_type == 1) {
-      filter_smoother(alpha, indices);
-      running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n - 1));
-    } else {
-      Rcpp::stop("Forward-backward smoothing with psi-filter is not yet implemented.");
-    }
+    filter_smoother(alpha, indices);
+    running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n));
+   
     arma::inplace_trans(alphahat);
     return Rcpp::List::create(
       Rcpp::Named("alphahat") = alphahat, Rcpp::Named("Vt") = Vt, 
@@ -67,22 +61,19 @@ Rcpp::List psi_smoother(const Rcpp::List& model_, const arma::vec mode_estimate,
   } break;
   case 3: {
     ung_svm model(clone(model_), seed);
-    arma::cube alpha(model.m, model.n, nsim_states);
-    arma::mat weights(nsim_states, model.n);
-    arma::umat indices(nsim_states, model.n - 1);
+    arma::cube alpha(model.m, model.n + 1, nsim_states);
+    arma::mat weights(nsim_states, model.n + 1);
+    arma::umat indices(nsim_states, model.n);
     
     double loglik = compute_ung_psi_filter(model, nsim_states, 
       mode_estimate, max_iter, conv_tol, alpha, weights, indices);
     
-    arma::mat alphahat(model.m, model.n);
-    arma::cube Vt(model.m, model.m, model.n);
+    arma::mat alphahat(model.m, model.n + 1);
+    arma::cube Vt(model.m, model.m, model.n + 1);
     
-    if (smoothing_type == 1) {
-      filter_smoother(alpha, indices);
-      running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n - 1));
-    } else {
-      Rcpp::stop("Forward-backward smoothing with psi-filter is not yet implemented.");
-    }
+    filter_smoother(alpha, indices);
+    running_weighted_summary(alpha, alphahat, Vt, weights.col(model.n));
+   
     arma::inplace_trans(alphahat);
     return Rcpp::List::create(
       Rcpp::Named("alphahat") = alphahat, Rcpp::Named("Vt") = Vt, 
@@ -128,21 +119,17 @@ Rcpp::List psi_smoother_nlg(const arma::mat& y, SEXP Z, SEXP H,
   }
   double approx_loglik = approx_model.log_likelihood();
   
-  arma::cube alpha(m, n, nsim_states);
-  arma::mat weights(nsim_states, n);
-  arma::umat indices(nsim_states, n - 1);
+  arma::cube alpha(m, n + 1, nsim_states);
+  arma::mat weights(nsim_states, n + 1);
+  arma::umat indices(nsim_states, n);
   double loglik = model.psi_filter(approx_model, approx_loglik,
     nsim_states, alpha, weights, indices);
 
-  arma::mat alphahat(model.m, model.n);
-  arma::cube Vt(model.m, model.m, model.n);
+  arma::mat alphahat(model.m, model.n + 1);
+  arma::cube Vt(model.m, model.m, model.n + 1);
   
-//  if (smoothing_type == 1) {
     filter_smoother(alpha, indices);
-    running_weighted_summary(alpha, alphahat, Vt, weights.col(n - 1));
-  //} else {
-   // Rcpp::stop("Forward-backward smoothing with psi-filter is not yet implemented.");
-//  }
+    running_weighted_summary(alpha, alphahat, Vt, weights.col(n));
   arma::inplace_trans(alphahat);
   return Rcpp::List::create(
     Rcpp::Named("alphahat") = alphahat, Rcpp::Named("Vt") = Vt, 

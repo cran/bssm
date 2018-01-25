@@ -15,9 +15,11 @@
 #' @param probs Desired quantiles. Defaults to \code{c(0.05, 0.95)}. Always includes median 0.5.
 #' @param future_model Model for future observations. Should have same structure
 #' as the original model which was used in MCMC, in order to plug the posterior 
-#' samples of the model parameters to right place.
-#' @param nsim Number of samples to draw per MCMC iteration. 
-#' Defaults to 1 except for EKF based MCMC output of non-linear Gaussian models (see below). 
+#' samples of the model parameters to the right places.
+#' @param nsim Number of state samples to draw per MCMC iteration. 
+#' Note that this has no effect for the time point $n+1$ 
+#' (where $n$ is the length of the original series) as this is directly obtained from the MCMC output.
+#' \code{nsim} defaults to 1 except for the EKF based MCMC output of non-linear Gaussian models (see below). 
 #' For linear-Gaussian models the intervals are computed based on Kalman filter so 
 #' this argument has no effect if \code{intervals} is \code{TRUE}. For non-linear Gaussian 
 #' models of class \code{nlg_ssm}, if \code{nsim} is 0 and \code{intervals} is \code{TRUE}, 
@@ -75,6 +77,8 @@ predict.mcmc_output <- function(object, future_model, type = "response",
   
   type <- match.arg(type, c("response", "mean", "state"))
   
+  if (is.null(object$alpha)) stop("MCMC output must contain posterior samples of the states.")
+  
   if (missing(nsim)) {
     if(object$mcmc_type == "ekf" && intervals) {
       nsim <- 0
@@ -89,15 +93,21 @@ predict.mcmc_output <- function(object, future_model, type = "response",
   end_ts <- end(future_model$y)
   freq <- frequency(future_model$y)
   
+  if (attr(object, "model_type") %in% c("bsm", "ng_bsm")) {
+    object$theta[,1:(ncol(object$theta) - length(future_model$coefs))] <- 
+      log(1 + object$theta[,1:(ncol(object$theta) - length(future_model$coefs))])
+  }
+  
   switch(attr(object, "model_type"),
     gssm = ,
-    bsm = {
+    bsm = ,
+    ar1 = {
       
       out <- gaussian_predict(future_model, probs,
-        t(object$theta), object$alpha[nrow(object$alpha),,], object$counts, 
-        pmatch(type, c("response", "mean", "state")), intervals, 
-        seed, pmatch(attr(object, "model_type"), c("gssm", "bsm")), nsim)
-      
+        t(object$theta), matrix(object$alpha[nrow(object$alpha),,], nrow = ncol(object$alpha)), 
+        object$counts, pmatch(type, c("response", "mean", "state")), intervals, 
+        seed, pmatch(attr(object, "model_type"), c("gssm", "bsm", "ar1")), nsim)
+     
       if (intervals) {
         
         if (return_MCSE) {
@@ -174,7 +184,7 @@ predict.mcmc_output <- function(object, future_model, type = "response",
       out <- nongaussian_predict(future_model, probs,
         t(object$theta), object$alpha[nrow(object$alpha),,], object$counts, 
         pmatch(type, c("response", "mean", "state")), seed, 
-        pmatch(attr(object, "model_type"), c("ngssm", "ng_bsm", "svm")))
+        pmatch(attr(object, "model_type"), c("ngssm", "ng_bsm", "svm", "ng_ar1")))
       if (intervals) {
         if (type != "state") {
           pred <- list(mean = ts(rowMeans(out[1,,]),  start = start_ts, end = end_ts, 
@@ -205,10 +215,9 @@ predict.mcmc_output <- function(object, future_model, type = "response",
           future_model$log_prior_pdf, future_model$known_params, 
           future_model$known_tv_params, as.integer(future_model$time_varying),
           future_model$n_states, future_model$n_etas, probs,
-          t(object$theta), object$alpha[nrow(object$alpha),,], 
+          t(object$theta), matrix(object$alpha[nrow(object$alpha),,], nrow = ncol(object$alpha)), 
           array(0, c(future_model$n_states, future_model$n_states, nrow(object$theta))), 
-          object$counts, 
-          pmatch(type, c("response", "mean", "state")))
+          object$counts, pmatch(type, c("response", "mean", "state")))
         
         
         if (type != "state") {
@@ -216,7 +225,7 @@ predict.mcmc_output <- function(object, future_model, type = "response",
             intervals = ts(out$intervals, start = start_ts, end = end_ts, frequency = freq,
               names = paste0(100 * probs, "%"))) 
         } else {
-          intv <- lapply(1:length(future_model$n_states), function(i) ts(out$intervals[,,i], 
+          intv <- lapply(1:future_model$n_states, function(i) ts(out$intervals[,,i], 
             start = start_ts, end = end_ts, frequency = freq,
             names = paste0(100 * probs, "%")))
           names(intv) <- names(future_model$state_names)
@@ -231,8 +240,8 @@ predict.mcmc_output <- function(object, future_model, type = "response",
           future_model$log_prior_pdf, future_model$known_params, 
           future_model$known_tv_params, as.integer(future_model$time_varying),
           future_model$n_states, future_model$n_etas, probs,
-          t(object$theta), object$alpha[nrow(object$alpha),,], object$counts, 
-          pmatch(type, c("response", "mean", "state")), seed, nsim)
+          t(object$theta), matrix(object$alpha[nrow(object$alpha),,], nrow = ncol(object$alpha)), 
+          object$counts, pmatch(type, c("response", "mean", "state")), seed, nsim)
         
         if (intervals) {
           if (type != "state") {
