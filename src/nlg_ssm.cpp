@@ -242,7 +242,7 @@ double nlg_ssm::ekf(arma::mat& at, arma::mat& att, arma::cube& Pt,
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       
       // first check to avoid armadillo warnings
-        bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
+      bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
       if (!chol_ok) return -std::numeric_limits<double>::infinity();
       arma::mat cholF(p, p);
       chol_ok = arma::chol(cholF, Ft);
@@ -285,7 +285,10 @@ double nlg_ssm::ekf(arma::mat& at, arma::mat& att, arma::cube& Pt,
         atthat = atthat_new;
       }
       att.col(t) = atthat;
-      Ptt.slice(t) = Pt.slice(t) - Kt * Ft * Kt.t();
+      //Ptt.slice(t) = Pt.slice(t) - Kt * Ft * Kt.t();
+      // Switched to numerically better form
+      arma::mat tmp = arma::eye(m, m) - Kt * Zg;
+      Ptt.slice(t) = tmp * Pt.slice(t) * tmp.t() + Kt * HHt * Kt.t();
       
       arma::vec Fv = inv_cholF.t() * vt; 
       logLik -= 0.5 * arma::as_scalar((p - na_y.n_elem) * LOG2PI + 
@@ -329,7 +332,7 @@ double nlg_ssm::ekf_loglik(const unsigned int iekf_iter) const {
       
       arma::mat Ft = Zg * Pt * Zg.t() + HHt;
       // first check avoid armadillo warnings
-        bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
+      bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
       if (!chol_ok) return -std::numeric_limits<double>::infinity();
       arma::mat cholF(p, p);
       chol_ok = arma::chol(cholF, Ft);
@@ -375,7 +378,10 @@ double nlg_ssm::ekf_loglik(const unsigned int iekf_iter) const {
       }
       att = atthat;
       
-      Ptt -= Kt * Ft * Kt.t();
+      //Ptt -= Kt * Ft * Kt.t();
+      // Switched to numerically better form
+      arma::mat tmp = arma::eye(m, m) - Kt * Zg;
+      Ptt = tmp * Pt * tmp.t() + Kt * HHt * Kt.t();
       
       arma::vec Fv = inv_cholF.t() * vt; 
       logLik -= 0.5 * arma::as_scalar((p - na_y.n_elem) * LOG2PI + 
@@ -422,7 +428,7 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
       HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       // first check avoid armadillo warnings
-        bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
+      bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
       if (!chol_ok) return -std::numeric_limits<double>::infinity();
       arma::mat cholF(p, p);
       chol_ok = arma::chol(cholF, Ft);
@@ -469,7 +475,10 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
         atthat = atthat_new;
       }
       att.col(t) = atthat;
-      Ptt = Pt.slice(t) - Kt.slice(t) * Ft * Kt.slice(t).t();
+      //Ptt = Pt.slice(t) - Kt.slice(t) * Ft * Kt.slice(t).t();
+      // Switched to numerically better form
+      arma::mat tmp = arma::eye(m, m) - Kt.slice(t) * Zg;
+      Ptt = tmp * Pt.slice(t) * tmp.t() + Kt.slice(t) * HHt * Kt.slice(t).t();
       arma::vec Fv = inv_cholF.t() * vt.col(t); 
       logLik -= 0.5 * arma::as_scalar((p - na_y.n_elem) * LOG2PI + 
         2.0 * arma::accu(arma::log(arma::diagvec(cholF))) + Fv.t() * Fv);
@@ -538,7 +547,7 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
       
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       // first check avoid armadillo warnings
-        bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
+      bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
       if (!chol_ok) return -std::numeric_limits<double>::infinity();
       arma::mat cholF(p, p);
       chol_ok = arma::chol(cholF, Ft);
@@ -585,7 +594,10 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
         atthat = atthat_new;
       }
       att.col(t) = atthat;
-      Ptt = Pt.slice(t) - Kt.slice(t) * Ft * Kt.slice(t).t();
+      //Ptt = Pt.slice(t) - Kt.slice(t) * Ft * Kt.slice(t).t();
+      // Switched to numerically better form
+      arma::mat tmp = arma::eye(m, m) - Kt.slice(t) * Zg;
+      Ptt = tmp * Pt.slice(t) * tmp.t() + Kt.slice(t) * HHt * Kt.slice(t).t();
       
       arma::vec Fv = inv_cholF.t() * vt.col(t); 
       logLik -= 0.5 * arma::as_scalar((p - na_y.n_elem) * LOG2PI + 
@@ -790,7 +802,7 @@ mgg_ssm nlg_ssm::approximate(arma::mat& mode_estimate,
 arma::mat nlg_ssm::approximate(mgg_ssm& approx_model,
   const unsigned int max_iter, const double conv_tol) const {
   
-
+  
   //check model
   arma::mat mode_estimate = approx_model.fast_smoother().head_cols(n);
   if (!arma::is_finite(mode_estimate)) {
@@ -880,10 +892,11 @@ arma::vec nlg_ssm::log_weights(const mgg_ssm& approx_model,
   
   arma::vec weights(alpha.n_slices, arma::fill::zeros);
   
-  if (arma::is_finite(y(t))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(t));
+  if (na_y.n_elem < p) {
     
-    // original H depends on time or state <=> approx H depends on time or state
-    if(Htv == 1) {
+    // original H depends on time or state <=> approx H depends on time or state, or missing values
+    if(Htv == 1 || na_y.n_elem > 0) {
       for (unsigned int i = 0; i < alpha.n_slices; i++) {
         weights(i) = 
           dmvnorm(y.col(t), Z_fn(t, alpha.slice(i).col(t), theta, known_params, known_tv_params), 
@@ -913,7 +926,6 @@ arma::vec nlg_ssm::log_weights(const mgg_ssm& approx_model,
   }
   arma::vec weights_t(alpha.n_slices, arma::fill::zeros);
   if(t > 0) {
-    
     for (unsigned int i = 0; i < alpha.n_slices; i++) {
       
       arma::vec mean = T_fn(t - 1, alpha_prev.col(i), theta, known_params, known_tv_params);
@@ -940,8 +952,9 @@ arma::vec nlg_ssm::scaling_factors(const mgg_ssm& approx_model,
   
   arma::vec weights(n, arma::fill::zeros);
   
-  for(unsigned int t = 0; t < n; t++) {
-    if (arma::is_finite(y(t))) {
+  for(unsigned int t = 0; t < n; t++) { 
+    arma::uvec na_y = arma::find_nonfinite(y.col(t));
+    if (na_y.n_elem < p) {
       weights(t) =  dmvnorm(y.col(t), Z_fn(t, mode_estimate.col(t), theta, known_params, known_tv_params),
         H_fn(t, mode_estimate.col(t), theta, known_params, known_tv_params), true, true) -
           dmvnorm(y.col(t), approx_model.D.col(t) + approx_model.Z.slice(t * approx_model.Ztv) * mode_estimate.col(t),
@@ -974,7 +987,8 @@ arma::vec nlg_ssm::log_obs_density(const unsigned int t,
   
   arma::vec weights(alpha.n_slices, arma::fill::zeros);
   
-  if (arma::is_finite(y(t))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(t));
+  if (na_y.n_elem < p) {
     for (unsigned int i = 0; i < alpha.n_slices; i++) {
       weights(i) = dmvnorm(y.col(t), Z_fn(t, alpha.slice(i).col(t), theta, known_params, known_tv_params), 
         H_fn(t, alpha.slice(i).col(t), theta, known_params, known_tv_params), true, true);
@@ -988,10 +1002,10 @@ double nlg_ssm::log_obs_density(const unsigned int t,
   
   double weight = 0.0;
   
-  if (arma::is_finite(y(t))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(t));
+  if (na_y.n_elem < p) {
     weight = dmvnorm(y.col(t), Z_fn(t, alpha, theta, known_params, known_tv_params), 
       H_fn(t, alpha, theta, known_params, known_tv_params), true, true);
-    
   }
   return weight;
 }
@@ -1022,8 +1036,8 @@ double nlg_ssm::psi_filter(const mgg_ssm& approx_model,
   std::uniform_real_distribution<> unif(0.0, 1.0);
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
-  if(arma::is_finite(y(0))) {
-    //weights.col(0) = exp(log_weights(approx_model, 0, alpha) - scales(0));
+  arma::uvec na_y = arma::find_nonfinite(y.col(0));
+  if (na_y.n_elem < p) { 
     weights.col(0) = log_weights(approx_model, 0, alpha, arma::mat(m, nsim, arma::fill::zeros));
     double max_weight = weights.col(0).max();
     weights.col(0) = arma::exp(weights.col(0) - max_weight);
@@ -1061,8 +1075,7 @@ double nlg_ssm::psi_filter(const mgg_ssm& approx_model,
         Ct.slice(t + 1) * (alphatmp.col(i) - alphahat.col(t)) + Vt.slice(t + 1) * um;
     }
     
-    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
-      
+    if (t < (n - 1) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
       weights.col(t + 1) = log_weights(approx_model, t + 1, alpha, alphatmp);
       double max_weight = weights.col(t+1).max();
       weights.col(t+1) = arma::exp(weights.col(t+1) - max_weight);
@@ -1111,7 +1124,8 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
   
-  if(arma::is_finite(y(0))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(0));
+  if (na_y.n_elem < p) { 
     weights.col(0) = log_obs_density(0, alpha);
     double max_weight = weights.col(0).max();
     weights.col(0) = arma::exp(weights.col(0) - max_weight);
@@ -1150,8 +1164,8 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
       alpha.slice(i).col(t + 1) = T_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) + 
         R_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) * uk;
     }
-    
-    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
+
+    if (t < (n - 1) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       
       double max_weight = weights.col(t + 1).max();
@@ -1202,7 +1216,8 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
   
-  if(arma::is_finite(y(0))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(0));
+  if (na_y.n_elem < p) { 
     weights.col(0) = log_obs_density(0, alpha);
     
     for (unsigned int i = 0; i < nsim; i++) {
@@ -1256,8 +1271,9 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
         um(j) = normal(engine);
       }
       alpha.slice(i).col(t + 1) = att.col(i) + Ptt.slice(i) * um;
-    }
-    if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
+    } 
+    
+    if (t < (n - 1) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       for (unsigned int i = 0; i < nsim; i++) {
         arma::mat Rt = R_fn(t,  alphatmp.col(i), theta, known_params, known_tv_params);
@@ -1306,8 +1322,10 @@ void nlg_ssm::ekf_update_step(const unsigned int t, const arma::vec y,
     arma::mat inv_cholF = arma::inv(arma::trimatu(cholF));
     arma::mat Kt = Pt * Zg.t() * inv_cholF * inv_cholF.t();
     att = at + Kt * vt;
-    Ptt = Pt - Kt * Ft * Kt.t();
-    
+    //Ptt = Pt - Kt * Ft * Kt.t();
+    // Switched to numerically better form
+    arma::mat tmp = arma::eye(m, m) - Kt * Zg;
+    Ptt = tmp * Pt * tmp.t() + Kt * HHt * Kt.t();
   } else {
     att = at;
     Ptt = Pt;
@@ -1318,8 +1336,8 @@ double nlg_ssm::log_signal_pdf(const arma::mat& alpha) const {
   
   double ll = dmvnorm(alpha.col(0), a1_fn(theta, known_params), 
     P1_fn(theta, known_params), false, true);
-  
-  if (arma::is_finite(y.col(0))) {
+  arma::uvec na_y = arma::find_nonfinite(y.col(0));
+  if (na_y.n_elem < p) { 
     ll += dmvnorm(y.col(0), Z_fn(0, alpha.col(0), theta, known_params, known_tv_params), 
       H_fn(0, alpha.col(0), theta, known_params, known_tv_params), true, true);
   }
@@ -1330,10 +1348,10 @@ double nlg_ssm::log_signal_pdf(const arma::mat& alpha) const {
     arma::mat cov = R_fn(t, alpha.col(t), theta, known_params, known_tv_params);
     cov = cov * cov.t();
     ll += dmvnorm(alpha.col(t+1), mean, cov, false, true);
-    if (arma::is_finite(y.col(t+1))) {
+    arma::uvec na_y = arma::find_nonfinite(y.col(t + 1));
+    if (na_y.n_elem < p) {
       ll += dmvnorm(y.col(t + 1), Z_fn(t + 1, alpha.col(t + 1), theta, known_params, known_tv_params), 
         H_fn(t + 1, alpha.col(t + 1), theta, known_params, known_tv_params), true, true);
-      
     }
   }
   return ll;

@@ -8,16 +8,17 @@
 
 #include "rep_mat.h"
 #include "filter_smoother.h"
+#include "summary.h"
 
 nlg_amcmc::nlg_amcmc(const unsigned int n_iter, 
   const unsigned int n_burnin, const unsigned int n_thin, const unsigned int n, 
   const unsigned int m, const double target_acceptance, const double gamma, 
-  const arma::mat& S, const bool store_modes) :
+  const arma::mat& S, const unsigned int output_type, const bool store_modes) :
   mcmc(n_iter, n_burnin, n_thin, n, m,
-    target_acceptance, gamma, S, true),
+    target_acceptance, gamma, S, output_type),
     weight_storage(arma::vec(n_samples, arma::fill::zeros)),
     approx_loglik_storage(arma::vec(n_samples)),
-    scales_storage(arma::vec(n_samples)),
+    scales_storage(arma::vec(n_samples * store_modes)),
     prior_storage(arma::vec(n_samples)),
     store_modes(store_modes),
     mode_storage(arma::cube(m, n + 1, n_samples * store_modes)){
@@ -27,12 +28,16 @@ void nlg_amcmc::trim_storage() {
   theta_storage.resize(n_par, n_stored);
   posterior_storage.resize(n_stored);
   count_storage.resize(n_stored);
-  alpha_storage.resize(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
-  scales_storage.resize(n_stored);
   weight_storage.resize(n_stored);
-  approx_loglik_storage.resize(n_stored);
   prior_storage.resize(n_stored);
-  mode_storage.resize(mode_storage.n_rows, mode_storage.n_cols, n_stored);
+  approx_loglik_storage.resize(n_stored);
+  if (output_type == 1) {
+    alpha_storage.resize(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
+  }
+  if (store_modes) {
+    mode_storage.resize(mode_storage.n_rows, mode_storage.n_cols, n_stored);
+    scales_storage.resize(n_stored);
+  }
 }
 
 void nlg_amcmc::expand() {
@@ -48,15 +53,7 @@ void nlg_amcmc::expand() {
   arma::vec expanded_posterior = rep_vec(posterior_storage, count_storage);
   posterior_storage.set_size(n_stored);
   posterior_storage = expanded_posterior;
-  
-  arma::cube expanded_alpha = rep_cube(alpha_storage, count_storage);
-  alpha_storage.set_size(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
-  alpha_storage = expanded_alpha;
-  
-  arma::mat expanded_scales = rep_mat(scales_storage, count_storage);
-  scales_storage.set_size(scales_storage.n_rows, n_stored);
-  scales_storage = expanded_scales;
-  
+
   arma::vec expanded_weight = rep_vec(weight_storage, count_storage);
   weight_storage.set_size(n_stored);
   weight_storage = expanded_weight;
@@ -68,12 +65,24 @@ void nlg_amcmc::expand() {
   arma::vec expanded_prior = rep_vec(prior_storage, count_storage);
   prior_storage.set_size(n_stored);
   prior_storage = expanded_prior;
-  
-  arma::cube expanded_mode = rep_cube(mode_storage, count_storage);
-  mode_storage.set_size(mode_storage.n_rows, mode_storage.n_cols, n_stored);
-  mode_storage = expanded_mode;
+
   count_storage.resize(n_stored);
   count_storage.ones();
+  
+  if (output_type == 1) {
+    arma::cube expanded_alpha = rep_cube(alpha_storage, count_storage);
+    alpha_storage.set_size(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
+    alpha_storage = expanded_alpha;
+  }
+  if (store_modes) {
+    arma::mat expanded_scales = rep_mat(scales_storage, count_storage);
+    scales_storage.set_size(scales_storage.n_rows, n_stored);
+    scales_storage = expanded_scales;
+
+    arma::cube expanded_mode = rep_cube(mode_storage, count_storage);
+    mode_storage.set_size(mode_storage.n_rows, mode_storage.n_cols, n_stored);
+    mode_storage = expanded_mode;
+  }
   
 }
 // run approximate MCMC for
@@ -143,7 +152,7 @@ void nlg_amcmc::approx_mcmc(nlg_ssm model, const unsigned int max_iter,
       }
       
       if (loglik_prop > -std::numeric_limits<double>::infinity() && !std::isnan(loglik_prop)) {
-      
+        
         acceptance_prob = std::min(1.0, 
           std::exp(loglik_prop - loglik + logprior_prop - logprior));
         
@@ -171,10 +180,10 @@ void nlg_amcmc::approx_mcmc(nlg_ssm model, const unsigned int max_iter,
         approx_loglik_storage(n_stored) = loglik;
         prior_storage(n_stored) = logprior;
         theta_storage.col(n_stored) = theta;
-        scales_storage(n_stored) = sum_scales;
         count_storage(n_stored) = 1;
         if(store_modes) {
           mode_storage.slice(n_stored) = mode_estimate;
+          scales_storage(n_stored) = sum_scales;
         }
         n_stored++;
         new_value = false;
@@ -277,8 +286,11 @@ void nlg_amcmc::ekf_mcmc(nlg_ssm model, const bool end_ram, const unsigned int i
 void nlg_amcmc::is_correction_bsf(nlg_ssm model, const unsigned int nsim_states, 
   const unsigned int is_type, const unsigned int n_threads) {
   
+  arma::cube Valpha(model.m, model.m, model.n + 1, arma::fill::zeros);
+  double sum_w = 0.0;
+  
 #ifdef _OPENMP
-#pragma omp parallel num_threads(n_threads) default(none) firstprivate(model) 
+#pragma omp parallel num_threads(n_threads) default(none) shared(Valpha, sum_w) firstprivate(model) 
 {
   
   model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
@@ -298,16 +310,31 @@ void nlg_amcmc::is_correction_bsf(nlg_ssm model, const unsigned int nsim_states,
     arma::umat indices(nsim, model.n);
     
     double loglik = model.bsf_filter(nsim, alpha_i, weights_i, indices);
-    if(arma::is_finite(loglik)) {
-      weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
+    weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
+    if (output_type != 3) {
       filter_smoother(alpha_i, indices);
       arma::vec w = weights_i.col(model.n);
-      std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-      alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
-    } else {
-      weight_storage(i) = 0.0;
-      alpha_storage.slice(i).zeros();
+      if (output_type == 1) {
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+        alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
+      } else {
+        arma::mat alphahat_i(model.m, model.n + 1);
+        arma::cube Vt_i(model.m, model.m, model.n + 1);
+        weighted_summary(alpha_i, alphahat_i, Vt_i, w);
+#pragma omp critical
+{
+  arma::mat diff = alphahat_i - alphahat;
+  double tmp = count_storage(i) + sum_w;
+  alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
+  for (unsigned int t = 0; t < model.n + 1; t++) {
+    Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+  }
+  Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
+  sum_w = tmp;
+}
+      }
     }
+    
   }
 }
 #else
@@ -325,19 +352,35 @@ for (unsigned int i = 0; i < theta_storage.n_cols; i++) {
   arma::umat indices(nsim, model.n);
   
   double loglik = model.bsf_filter(nsim, alpha_i, weights_i, indices);
-  if(arma::is_finite(loglik)) {
-    weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
+  
+  weight_storage(i) = std::exp(loglik - approx_loglik_storage(i));
+  if (output_type != 3) {
     filter_smoother(alpha_i, indices);
     arma::vec w = weights_i.col(model.n);
-    std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-    alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
-  } else {
-    weight_storage(i) = 0.0;
-    alpha_storage.slice(i).zeros();
+    if (output_type == 1) {
+      std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+      alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
+    } else {
+      arma::mat alphahat_i(model.m, model.n + 1);
+      arma::cube Vt_i(model.m, model.m, model.n + 1);
+      weighted_summary(alpha_i, alphahat_i, Vt_i, w);
+      
+      arma::mat diff = alphahat_i - alphahat;
+      double tmp = count_storage(i) + sum_w;
+      alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+      Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
+      sum_w = tmp;
+      
+    }
   }
 }
 #endif
-
+if (output_type == 2) {
+  Vt += Valpha / theta_storage.n_cols; // Var[E(alpha)] + E[Var(alpha)]
+}
 posterior_storage = prior_storage + arma::log(weight_storage);
 }
 
@@ -345,8 +388,11 @@ posterior_storage = prior_storage + arma::log(weight_storage);
 void nlg_amcmc::is_correction_psi(nlg_ssm model, const unsigned int nsim_states, 
   const unsigned int is_type, const unsigned int n_threads) {
   
+  arma::cube Valpha(model.m, model.m, model.n + 1, arma::fill::zeros);
+  double sum_w = 0.0;
+  
 #ifdef _OPENMP
-#pragma omp parallel num_threads(n_threads) default(none) firstprivate(model)
+#pragma omp parallel num_threads(n_threads) default(none) shared(Valpha, sum_w) firstprivate(model)
 {
   model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
   
@@ -401,16 +447,30 @@ void nlg_amcmc::is_correction_psi(nlg_ssm model, const unsigned int nsim_states,
     arma::umat indices(nsim, model.n);
     
     double loglik = model.psi_filter(approx_model, 0.0, nsim, alpha_i, weights_i, indices);
-    if(arma::is_finite(loglik)) {
-      weight_storage(i) = std::exp(loglik);
-      
+    
+    weight_storage(i) = std::exp(loglik);
+    if (output_type != 3) {
       filter_smoother(alpha_i, indices);
       arma::vec w = weights_i.col(model.n);
-      std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-      alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t(); 
-    } else {
-      weight_storage(i) = 0.0;
-      alpha_storage.slice(i).zeros();
+      if (output_type == 1) {
+        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+        alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
+      } else {
+        arma::mat alphahat_i(model.m, model.n + 1);
+        arma::cube Vt_i(model.m, model.m, model.n + 1);
+        weighted_summary(alpha_i, alphahat_i, Vt_i, w);
+#pragma omp critical
+{
+  arma::mat diff = alphahat_i - alphahat;
+  double tmp = count_storage(i) + sum_w;
+  alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
+  for (unsigned int t = 0; t < model.n + 1; t++) {
+    Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+  }
+  Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
+  sum_w = tmp;
+}
+      }
     }
   }
 }
@@ -465,19 +525,36 @@ for (unsigned int i = 0; i < theta_storage.n_cols; i++) {
   arma::umat indices(nsim, model.n);
   
   double loglik = model.psi_filter(approx_model, 0.0, nsim, alpha_i, weights_i, indices);
-  if(arma::is_finite(loglik)) {
-    weight_storage(i) = std::exp(loglik);
-    
+  
+  weight_storage(i) = std::exp(loglik);
+  
+  if (output_type != 3) {
     filter_smoother(alpha_i, indices);
     arma::vec w = weights_i.col(model.n);
-    std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-    alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t(); 
-  } else {
-    weight_storage(i) = 0.0;
-    alpha_storage.slice(i).zeros();
+    if (output_type == 1) {
+      std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+      alpha_storage.slice(i) = alpha_i.slice(sample(model.engine)).t();
+    } else {
+      arma::mat alphahat_i(model.m, model.n + 1);
+      arma::cube Vt_i(model.m, model.m, model.n + 1);
+      weighted_summary(alpha_i, alphahat_i, Vt_i, w);
+      arma::mat diff = alphahat_i - alphahat;
+      double tmp = count_storage(i) + sum_w;
+      alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+      Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
+      sum_w = tmp;
+      
+    }
   }
+  
 }
 #endif
+if (output_type == 2) {
+  Vt += Valpha / theta_storage.n_cols; // Var[E(alpha)] + E[Var(alpha)]
+}
 posterior_storage = prior_storage + approx_loglik_storage - scales_storage + 
   arma::log(weight_storage);
 }
@@ -620,7 +697,7 @@ void nlg_amcmc::state_ekf_summary(nlg_ssm& model,
     Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
     sum_w = tmp;
   }
-  Vt += Valpha / theta_storage.n_cols; // Var[E(alpha)] + E[Var(alpha)]
+  Vt += Valpha / sum_w; // Var[E(alpha)] + E[Var(alpha)]
 }
 
 

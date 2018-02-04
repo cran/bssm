@@ -9,9 +9,7 @@ bsm_model <- bsm(y = nhtemp, sd_y = prior, sd_level = prior,
 sd_slope = prior)
 
 ## ----nhtemp_cpp----------------------------------------------------------
-Rcpp::sourceCpp("lgg_ssm_template.cpp", rebuild = TRUE, 
-cacheDir = paste0(tempdir(), round(runif(1) * 1000)), 
-cleanupCacheDir = TRUE)
+Rcpp::sourceCpp("lgg_ssm_template.cpp", rebuild = TRUE, cleanupCacheDir = TRUE)
 pntrs <- create_xptrs()
 bsm_model2 <- lgg_ssm(y = nhtemp, Z = pntrs$Z, H = pntrs$H, T = pntrs$T, R = pntrs$R, 
 a1 = pntrs$a1, P1 = pntrs$P1, state_intercept = pntrs$C, obs_intercept = pntrs$D, 
@@ -32,9 +30,7 @@ x <- sde.sim(t0 = 0, T = 100, X0 = 1, N = 100,
 y <- rpois(100, exp(x[-1]))
 
 ## ------------------------------------------------------------------------
-Rcpp::sourceCpp("sde_ssm_template.cpp", rebuild = TRUE, 
-  cacheDir = paste0(tempdir(), round(runif(1) * 1000)), 
-  cleanupCacheDir = TRUE)
+Rcpp::sourceCpp("sde_ssm_template.cpp", rebuild = TRUE, cleanupCacheDir = TRUE)
 pntrs <- create_xptrs()
 sde_model <- sde_ssm(y, pntrs$drift, pntrs$diffusion, 
   pntrs$ddiffusion, pntrs$obs_density, pntrs$prior, c(0.5, 2, 1), 1, FALSE)

@@ -17,11 +17,12 @@
 
 #include "distr_consts.h"
 #include "filter_smoother.h"
+#include "summary.h"
 
 mcmc::mcmc(const unsigned int n_iter, const unsigned int n_burnin,
-           const unsigned int n_thin, const unsigned int n, const unsigned int m,
-           const double target_acceptance, const double gamma, const arma::mat& S,
-           const bool store_states) :
+  const unsigned int n_thin, const unsigned int n, const unsigned int m,
+  const double target_acceptance, const double gamma, const arma::mat& S,
+  const unsigned int output_type) :
   n_iter(n_iter), n_burnin(n_burnin), n_thin(n_thin),
   n_samples(std::floor(static_cast <double> (n_iter - n_burnin) / n_thin)),
   n_par(S.n_rows),
@@ -29,15 +30,18 @@ mcmc::mcmc(const unsigned int n_iter, const unsigned int n_burnin,
   posterior_storage(arma::vec(n_samples)),
   theta_storage(arma::mat(n_par, n_samples)),
   count_storage(arma::uvec(n_samples, arma::fill::zeros)),
-  alpha_storage(arma::cube(n + 1, m, store_states * n_samples)), S(S),
-  acceptance_rate(0.0) {
+  alpha_storage(arma::cube((output_type == 1) * n + 1, m, (output_type == 1) * n_samples)), 
+  alphahat(arma::mat(m, (output_type == 2) * n + 1, arma::fill::zeros)), 
+  Vt(arma::cube(m, m, (output_type == 2) * n + 1, arma::fill::zeros)), S(S),
+  acceptance_rate(0.0), output_type(output_type) {
 }
 
 void mcmc::trim_storage() {
   theta_storage.resize(n_par, n_stored);
   posterior_storage.resize(n_stored);
   count_storage.resize(n_stored);
-  alpha_storage.resize(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
+  if (output_type == 1)
+    alpha_storage.resize(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
 }
 
 
@@ -78,9 +82,9 @@ void mcmc::state_posterior(T model, const unsigned int n_threads) {
 
 // should parallelize at some point
 template void mcmc::state_summary(ugg_ssm model, arma::mat& alphahat,
-                                  arma::cube& Vt);
+  arma::cube& Vt);
 template void mcmc::state_summary(ugg_bsm model, arma::mat& alphahat,
-                                  arma::cube& Vt);
+  arma::cube& Vt);
 template void mcmc::state_summary(ugg_ar1 model, arma::mat& alphahat,
   arma::cube& Vt);
 
@@ -112,9 +116,7 @@ void mcmc::state_summary(T model, arma::mat& alphahat, arma::cube& Vt) {
     Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
     sum_w = tmp;
   }
-  Vt += Valpha / n_samples; // Var[E(alpha)] + E[Var(alpha)]
-  
-  
+  Vt += Valpha / sum_w; // Var[E(alpha)] + E[Var(alpha)]
 }
 
 template <class T>
@@ -266,7 +268,7 @@ void mcmc::mcmc_gaussian<lgg_ssm>(lgg_ssm model, const bool end_ram) {
       // use explicit min(...) as we need this value later
       // double q = proposal(theta, theta_prop);
       acceptance_prob = std::min(1.0,
-                                 std::exp(loglik_prop - loglik + logprior_prop - logprior));
+        std::exp(loglik_prop - loglik + logprior_prop - logprior));
       //accept
       if (unif(model.engine) < acceptance_prob) {
         if (i > n_burnin) {
@@ -306,22 +308,25 @@ void mcmc::mcmc_gaussian<lgg_ssm>(lgg_ssm model, const bool end_ram) {
 // run pseudo-marginal MCMC for non-linear and/or non-Gaussian state space model
 // using psi-PF
 template void mcmc::pm_mcmc_spdk(ung_ssm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_spdk(ung_bsm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_spdk(ung_svm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_spdk(ung_ar1 model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 
 template<class T>
 void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_states,
-                        const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
-                        const double conv_tol) {
+  const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
+  const double conv_tol) {
+  
+  unsigned int m = model.m;
+  unsigned n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -349,17 +354,23 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   arma::cube alpha = approx_model.simulate_states(nsim_states, true);
   
   arma::vec weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
+  // bit extra space used...
   std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
   unsigned int ind = sample(model.engine);
   arma::mat sampled_alpha = alpha.slice(ind);
-  double ll_w = std::log(arma::accu(weights) / nsim_states);
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, weights);
   
+  double ll_w = std::log(arma::accu(weights) / nsim_states);
   double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
   double acceptance_prob = 0.0;
   bool new_value = true;
   unsigned int n_values = 0;
   std::normal_distribution<> normal(0.0, 1.0);
   std::uniform_real_distribution<> unif(0.0, 1.0);
+  
   for (unsigned int i = 1; i <= n_iter; i++) {
     
     if (i % 16 == 0) {
@@ -399,14 +410,11 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
       ll_w = std::log(arma::accu(weights) / nsim_states);
       
-      
       double loglik_prop =
         approx_model.log_likelihood() + const_term + sum_scales + ll_w;
       
       //compute the acceptance probability
       // use explicit min(...) as we need this value later
-      // double q = proposal(theta, theta_prop);
-      
       acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik +
         logprior_prop - logprior + 
         model.log_proposal_ratio(theta_prop, theta)));
@@ -417,8 +425,15 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
           acceptance_rate++;
           n_values++;
         }
-        std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
-        sampled_alpha = alpha.slice(ind);
+        if (output_type != 3) {
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
+            sampled_alpha = alpha.slice(ind);
+          } else {
+            //summary statistics for single iteration
+            weighted_summary(alpha, alphahat_i, Vt_i, weights);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -427,13 +442,25 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -445,6 +472,9 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
@@ -453,22 +483,22 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
 // run pseudo-marginal MCMC for non-linear and/or non-Gaussian state space model
 // using psi-PF
 template void mcmc::pm_mcmc_psi(ung_ssm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_psi(ung_bsm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_psi(ung_svm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::pm_mcmc_psi(ung_ar1 model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 
 template<class T>
 void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_states,
-                       const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
-                       const double conv_tol) {
+  const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
+  const double conv_tol) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -487,7 +517,6 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   // compute the log-likelihood of the approximate model
   double gaussian_loglik = approx_model.log_likelihood();
   
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
@@ -502,12 +531,16 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   arma::mat weights(nsim_states, n + 1);
   arma::umat indices(nsim_states, n);
   double loglik = model.psi_filter(approx_model, approx_loglik, scales,
-                                   nsim_states, alpha, weights, indices);
+    nsim_states, alpha, weights, indices);
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -553,7 +586,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       approx_loglik = gaussian_loglik + const_term + sum_scales;
       
       double loglik_prop = model.psi_filter(approx_model, approx_loglik, scales,
-                                            nsim_states, alpha, weights, indices);
+        nsim_states, alpha, weights, indices);
       
       //compute the acceptance probability
       // use explicit min(...) as we need this value later
@@ -569,10 +602,16 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
           acceptance_rate++;
           n_values++;
         }
-        filter_smoother(alpha, indices);
-        w = weights.col(n);
-        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-        sampled_alpha = alpha.slice(sample(model.engine));
+        if (output_type != 3) {
+          filter_smoother(alpha, indices);
+          w = weights.col(n);
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+            sampled_alpha = alpha.slice(sample(model.engine));
+          } else {
+            weighted_summary(alpha, alphahat_i, Vt_i, w);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -581,13 +620,25 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -599,7 +650,9 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -608,13 +661,13 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
 //using bsf-PF
 
 template void mcmc::pm_mcmc_bsf(ung_ssm model, const bool end_ram,
-                                const unsigned int nsim_states);
+  const unsigned int nsim_states);
 template void mcmc::pm_mcmc_bsf(ung_bsm model, const bool end_ram,
-                                const unsigned int nsim_states);
+  const unsigned int nsim_states);
 template void mcmc::pm_mcmc_bsf(ung_svm model, const bool end_ram,
-                                const unsigned int nsim_states);
+  const unsigned int nsim_states);
 template void mcmc::pm_mcmc_bsf(ung_ar1 model, const bool end_ram,
-                                const unsigned int nsim_states);
+  const unsigned int nsim_states);
 template<class T>
 void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_states) {
   
@@ -638,6 +691,10 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -682,10 +739,16 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
           acceptance_rate++;
           n_values++;
         }
-        filter_smoother(alpha, indices);
-        w = weights.col(n);
-        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-        sampled_alpha = alpha.slice(sample(model.engine));
+        if (output_type != 3) {
+          filter_smoother(alpha, indices);
+          w = weights.col(n);
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+            sampled_alpha = alpha.slice(sample(model.engine));
+          } else {
+            weighted_summary(alpha, alphahat_i, Vt_i, w);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -693,13 +756,25 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -711,7 +786,9 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -720,22 +797,24 @@ void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
 // non-linear and/or non-Gaussian state space model
 // using SPDK importance sampling
 template void mcmc::da_mcmc_spdk(ung_ssm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_spdk(ung_bsm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_spdk(ung_svm model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_spdk(ung_ar1 model, const bool end_ram,
-                                 const unsigned int nsim_states, const bool local_approx,
-                                 const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template<class T>
 void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_states,
-                        const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
-                        const double conv_tol) {
+  const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
+  const double conv_tol) {
   
+  unsigned int n = model.n;
+  unsigned int m = model.m;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -766,8 +845,12 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
   unsigned int ind = sample(model.engine);
   arma::mat sampled_alpha = alpha.slice(ind);
-  double ll_w = std::log(arma::accu(weights) / nsim_states);
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, weights);
   
+  double ll_w = std::log(arma::accu(weights) / nsim_states);
   double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
   
   double acceptance_prob = 0.0;
@@ -835,8 +918,15 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
               acceptance_rate++;
               n_values++;
             }
-            std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
-            sampled_alpha = alpha.slice(sample(model.engine));
+            if (output_type != 3) {
+              if (output_type == 1) {
+                std::discrete_distribution<unsigned int> sample(weights.begin(), weights.end());
+                sampled_alpha = alpha.slice(sample(model.engine));
+              } else {
+                //summary statistics for single iteration
+                weighted_summary(alpha, alphahat_i, Vt_i, weights);
+              }
+            }
             approx_loglik = approx_loglik_prop;
             loglik = approx_loglik + ll_w_prop;
             logprior = logprior_prop;
@@ -848,13 +938,25 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -866,7 +968,9 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -875,21 +979,21 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
 // non-linear and/or non-Gaussian state space model
 // using psi-PF
 template void mcmc::da_mcmc_psi(ung_ssm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_psi(ung_bsm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_psi(ung_svm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_psi(ung_ar1 model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template<class T>
 void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_states,
-                       const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
-                       const double conv_tol) {
+  const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
+  const double conv_tol) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -921,13 +1025,15 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   arma::mat weights(nsim_states, n + 1);
   arma::umat indices(nsim_states, n);
   double loglik = model.psi_filter(approx_model, approx_loglik, scales,
-                                   nsim_states, alpha, weights, indices);
-  
+    nsim_states, alpha, weights, indices);
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
-  
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   double acceptance_prob = 0.0;
   bool new_value = true;
   unsigned int n_values = 0;
@@ -980,7 +1086,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       if (unif(model.engine) < acceptance_prob) {
         
         double loglik_prop = model.psi_filter(approx_model, approx_loglik_prop, scales,
-                                              nsim_states, alpha, weights, indices);
+          nsim_states, alpha, weights, indices);
         
         //just in case
         if(std::isfinite(loglik_prop)) {
@@ -992,10 +1098,16 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
               acceptance_rate++;
               n_values++;
             }
-            filter_smoother(alpha, indices);
-            w = weights.col(n);
-            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-            sampled_alpha = alpha.slice(sample(model.engine));
+            if (output_type != 3) {
+              filter_smoother(alpha, indices);
+              w = weights.col(n);
+              if (output_type == 1) {
+                std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+                sampled_alpha = alpha.slice(sample(model.engine));
+              } else {
+                weighted_summary(alpha, alphahat_i, Vt_i, w);
+              }
+            }
             approx_loglik = approx_loglik_prop;
             loglik = loglik_prop;
             logprior = logprior_prop;
@@ -1006,13 +1118,25 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1024,7 +1148,9 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -1032,21 +1158,21 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
 // non-linear and/or non-Gaussian state space model
 // using bootstrap filter
 template void mcmc::da_mcmc_bsf(ung_ssm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_bsf(ung_bsm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_bsf(ung_svm model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template void mcmc::da_mcmc_bsf(ung_ar1 model, const bool end_ram,
-                                const unsigned int nsim_states, const bool local_approx,
-                                const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
+  const unsigned int nsim_states, const bool local_approx,
+  const arma::vec& initial_mode, const unsigned int max_iter, const double conv_tol);
 template<class T>
 void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_states,
-                       const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
-                       const double conv_tol) {
+  const bool local_approx, const arma::vec& initial_mode, const unsigned int max_iter,
+  const double conv_tol) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -1083,6 +1209,10 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1146,10 +1276,16 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
               acceptance_rate++;
               n_values++;
             }
-            filter_smoother(alpha, indices);
-            w = weights.col(n);
-            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-            sampled_alpha = alpha.slice(sample(model.engine));
+            if (output_type != 3) {
+              filter_smoother(alpha, indices);
+              w = weights.col(n);
+              if (output_type == 1) {
+                std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+                sampled_alpha = alpha.slice(sample(model.engine));
+              } else {
+                weighted_summary(alpha, alphahat_i, Vt_i, w);
+              }
+            }
             approx_loglik = approx_loglik_prop;
             loglik = loglik_prop;
             logprior = logprior_prop;
@@ -1160,13 +1296,25 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1178,7 +1326,9 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -1186,8 +1336,8 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
 // run pseudo-marginal MCMC for non-linear Gaussian state space model
 // using psi-PF
 void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
-                           const unsigned int nsim_states, const unsigned int max_iter,
-                           const double conv_tol, const unsigned int iekf_iter) {
+  const unsigned int nsim_states, const unsigned int max_iter,
+  const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -1210,12 +1360,16 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   arma::umat indices(nsim_states, n);
   
   double loglik = model.psi_filter(approx_model0, gaussian_loglik,
-                                   nsim_states, alpha, weights, indices);
+    nsim_states, alpha, weights, indices);
   
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1256,7 +1410,7 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
         // compute the log-likelihood of the approximate model
         gaussian_loglik = approx_model.log_likelihood();
         loglik_prop = model.psi_filter(approx_model, gaussian_loglik,
-                                       nsim_states, alpha, weights, indices);
+          nsim_states, alpha, weights, indices);
       }
       //compute the acceptance probability
       // use explicit min(...) as we need this value later
@@ -1274,10 +1428,16 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
           acceptance_rate++;
           n_values++;
         }
-        filter_smoother(alpha, indices);
-        w = weights.col(n);
-        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-        sampled_alpha = alpha.slice(sample(model.engine));
+        if (output_type != 3) {
+          filter_smoother(alpha, indices);
+          w = weights.col(n);
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+            sampled_alpha = alpha.slice(sample(model.engine));
+          } else {
+            weighted_summary(alpha, alphahat_i, Vt_i, w);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -1285,13 +1445,25 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1303,14 +1475,16 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
 
 // using BSF
 void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
-                           const unsigned int nsim_states) {
+  const unsigned int nsim_states) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -1329,6 +1503,10 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1374,10 +1552,16 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
           acceptance_rate++;
           n_values++;
         }
-        filter_smoother(alpha, indices);
-        w = weights.col(n);
-        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-        sampled_alpha = alpha.slice(sample(model.engine));
+        if (output_type != 3) {
+          filter_smoother(alpha, indices);
+          w = weights.col(n);
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+            sampled_alpha = alpha.slice(sample(model.engine));
+          } else {
+            weighted_summary(alpha, alphahat_i, Vt_i, w);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -1385,13 +1569,25 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1403,7 +1599,9 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -1411,8 +1609,8 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
 // run delayed acceptance MCMC for non-linear Gaussian state space model
 // using psi-PF
 void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
-                           const unsigned int nsim_states, const unsigned int max_iter,
-                           const double conv_tol, const unsigned int iekf_iter) {
+  const unsigned int nsim_states, const unsigned int max_iter,
+  const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -1434,12 +1632,16 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   arma::mat weights(nsim_states, n + 1);
   arma::umat indices(nsim_states, n);
   double loglik = model.psi_filter(approx_model0, approx_loglik,
-                                   nsim_states, alpha, weights, indices);
+    nsim_states, alpha, weights, indices);
   approx_loglik += arma::accu(model.scaling_factors(approx_model0, mode_estimate));
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1485,7 +1687,7 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
         if (unif(model.engine) < acceptance_prob) {
           
           double loglik_prop = model.psi_filter(approx_model, approx_loglik_prop - sum_scales,
-                                                nsim_states, alpha, weights, indices);
+            nsim_states, alpha, weights, indices);
           
           //just in case
           if(std::isfinite(loglik_prop)) {
@@ -1498,10 +1700,16 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
                 acceptance_rate++;
                 n_values++;
               }
-              filter_smoother(alpha, indices);
-              w = weights.col(n);
-              std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-              sampled_alpha = alpha.slice(sample(model.engine));
+              if (output_type != 3) {
+                filter_smoother(alpha, indices);
+                w = weights.col(n);
+                if (output_type == 1) {
+                  std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+                  sampled_alpha = alpha.slice(sample(model.engine));
+                } else {
+                  weighted_summary(alpha, alphahat_i, Vt_i, w);
+                }
+              }
               approx_loglik = approx_loglik_prop;
               loglik = loglik_prop;
               logprior = logprior_prop;
@@ -1513,13 +1721,25 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1531,7 +1751,9 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
@@ -1539,7 +1761,7 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
 // run delayed acceptance MCMC for non-linear Gaussian state space model
 // using BSF
 void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int nsim_states,
-                           const unsigned int max_iter, const double conv_tol, const unsigned int iekf_iter) {
+  const unsigned int max_iter, const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
   unsigned n = model.n;
@@ -1567,6 +1789,10 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1629,10 +1855,16 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
                 acceptance_rate++;
                 n_values++;
               }
-              filter_smoother(alpha, indices);
-              w = weights.col(n);
-              std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-              sampled_alpha = alpha.slice(sample(model.engine));
+              if (output_type != 3) {
+                filter_smoother(alpha, indices);
+                w = weights.col(n);
+                if (output_type == 1) {
+                  std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+                  sampled_alpha = alpha.slice(sample(model.engine));
+                } else {
+                  weighted_summary(alpha, alphahat_i, Vt_i, w);
+                }
+              }
               approx_loglik = approx_loglik_prop;
               loglik = loglik_prop;
               logprior = logprior_prop;
@@ -1644,13 +1876,25 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1662,14 +1906,16 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
 
 // PMCMC for SDE model
 void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
-                           const unsigned int nsim_states, const unsigned int L) {
+  const unsigned int nsim_states, const unsigned int L) {
   
   unsigned int m = 1;
   unsigned n = model.n;
@@ -1688,6 +1934,11 @@ void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(n + 1, m);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
+  
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1732,10 +1983,16 @@ void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
           acceptance_rate++;
           n_values++;
         }
-        filter_smoother(alpha, indices);
-        w = weights.col(n);
-        std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-        sampled_alpha = alpha.slice(sample(model.engine));
+        if (output_type != 3) {
+          filter_smoother(alpha, indices);
+          w = weights.col(n);
+          if (output_type == 1) {
+            std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+            sampled_alpha = alpha.slice(sample(model.engine));
+          } else {
+            weighted_summary(alpha, alphahat_i, Vt_i, w);
+          }
+        }
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -1743,13 +2000,25 @@ void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1761,15 +2030,17 @@ void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
 
 // run delayed acceptance MCMC for SDE model using BSF
 void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
-                           const unsigned int nsim_states, const unsigned int L_c,
-                           const unsigned int L_f, const bool target_full) {
+  const unsigned int nsim_states, const unsigned int L_c,
+  const unsigned int L_f, const bool target_full) {
   
   unsigned int m = 1;
   unsigned n = model.n;
@@ -1785,11 +2056,15 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
   double loglik_c = model.bsf_filter(nsim_states, L_c, alpha, weights, indices);
   double loglik_f = 0.0;
   loglik_f = model.bsf_filter(nsim_states, L_f, alpha, weights, indices);
- 
+  
   filter_smoother(alpha, indices);
   arma::vec w = weights.col(n);
   std::discrete_distribution<unsigned int> sample0(w.begin(), w.end());
   arma::mat sampled_alpha = alpha.slice(sample0(model.engine));
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  weighted_summary(alpha, alphahat_i, Vt_i, w);
   
   double acceptance_prob = 0.0;
   bool new_value = true;
@@ -1836,7 +2111,7 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
         if (unif(model.engine) < acceptance_prob) {
           
           double loglik_f_prop = model.bsf_filter(nsim_states, L_f, alpha, weights, indices);
-         
+          
           //just in case
           if(std::isfinite(loglik_f_prop)) {
             // delayed acceptance ratio, in log-scale
@@ -1851,10 +2126,16 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
                 acceptance_rate++;
                 n_values++;
               }
-              filter_smoother(alpha, indices);
-              w = weights.col(n);
-              std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
-              sampled_alpha = alpha.slice(sample(model.engine));
+              if (output_type != 3) {
+                filter_smoother(alpha, indices);
+                w = weights.col(n);
+                if (output_type == 1) {
+                  std::discrete_distribution<unsigned int> sample(w.begin(), w.end());
+                  sampled_alpha = alpha.slice(sample(model.engine));
+                } else {
+                  weighted_summary(alpha, alphahat_i, Vt_i, w);
+                }
+              }
               loglik_c = loglik_c_prop;
               loglik_f = loglik_f_prop;
               logprior = logprior_prop;
@@ -1870,13 +2151,25 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
       }
     } else acceptance_prob = 0.0;
     
+    // note: thinning does not affect this
+    if (i > n_burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - n_burnin - 1) + alphahat_i) / (i - n_burnin);
+      Vt = (Vt * (i - n_burnin - 1) + Vt_i) / (i - n_burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
     if (i > n_burnin && n_values % n_thin == 0) {
       //new block
       if (new_value) {
         posterior_storage(n_stored) = logprior + loglik_f;
         theta_storage.col(n_stored) = theta;
         count_storage(n_stored) = 1;
-        alpha_storage.slice(n_stored) = sampled_alpha.t();
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
         n_stored++;
         new_value = false;
       } else {
@@ -1888,7 +2181,9 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
       ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
     }
   }
-  
+  if (output_type == 2) {
+    Vt += Valphahat / (n_iter - n_burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
   trim_storage();
   acceptance_rate /= (n_iter - n_burnin);
 }
