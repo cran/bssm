@@ -234,10 +234,15 @@ double nlg_ssm::ekf(arma::mat& at, arma::mat& att, arma::cube& Pt,
     if (na_y.n_elem < p) {
       
       arma::mat Zg = Z_gn(t, at.col(t), theta, known_params, known_tv_params);
-      Zg.rows(na_y).zeros();
       arma::mat HHt = H_fn(t, at.col(t), theta, known_params, known_tv_params);
       HHt = HHt * HHt.t();
-      HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      
+      if (na_y.n_elem > 0) {
+        Zg.rows(na_y).zeros();
+        HHt.rows(na_y).zeros();
+        HHt.cols(na_y).zeros();
+        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      }
       
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       
@@ -260,10 +265,15 @@ double nlg_ssm::ekf(arma::mat& at, arma::mat& att, arma::cube& Pt,
       while (diff > 1e-4 && i < iekf_iter) {
         i++;
         Zg = Z_gn(t, atthat, theta, known_params, known_tv_params);
-        Zg.rows(na_y).zeros();
         HHt = H_fn(t, atthat, theta, known_params, known_tv_params);
         HHt = HHt * HHt.t();
-        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        
+        if (na_y.n_elem > 0) {
+          Zg.rows(na_y).zeros();
+          HHt.rows(na_y).zeros();
+          HHt.cols(na_y).zeros();
+          HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        }
         
         Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
         // first check avoid armadillo warnings
@@ -325,10 +335,15 @@ double nlg_ssm::ekf_loglik(const unsigned int iekf_iter) const {
     arma::mat Ptt = Pt;
     if (na_y.n_elem < p) {
       arma::mat Zg = Z_gn(t, at, theta, known_params, known_tv_params);
-      Zg.rows(na_y).zeros();
       arma::mat HHt = H_fn(t, at, theta, known_params, known_tv_params);
       HHt = HHt * HHt.t();
-      HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      
+      if (na_y.n_elem > 0) {
+        Zg.rows(na_y).zeros();
+        HHt.rows(na_y).zeros();
+        HHt.cols(na_y).zeros();
+        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      }
       
       arma::mat Ft = Zg * Pt * Zg.t() + HHt;
       // first check avoid armadillo warnings
@@ -351,10 +366,15 @@ double nlg_ssm::ekf_loglik(const unsigned int iekf_iter) const {
       while (diff > 1e-4 && i < iekf_iter) {
         i++;
         Zg = Z_gn(t, atthat, theta, known_params, known_tv_params);
-        Zg.rows(na_y).zeros();
         HHt = H_fn(t, atthat, theta, known_params, known_tv_params);
         HHt = HHt * HHt.t();
-        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        
+        if (na_y.n_elem > 0) {
+          Zg.rows(na_y).zeros();
+          HHt.rows(na_y).zeros();
+          HHt.cols(na_y).zeros();
+          HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        }
         
         Ft = Zg * Pt * Zg.t() + HHt;
         
@@ -408,8 +428,6 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
   arma::cube ZFinv(m, p, n,arma::fill::zeros);
   arma::cube Kt(m, p, n,arma::fill::zeros);
   
-  arma::uvec obs(n, arma::fill::ones);
-  
   arma::mat att(m, n);
   
   const double LOG2PI = std::log(2.0 * M_PI);
@@ -422,10 +440,15 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
     if (na_y.n_elem < p) {
       
       arma::mat Zg = Z_gn(t, at.col(t), theta, known_params, known_tv_params);
-      Zg.rows(na_y).zeros();
       arma::mat HHt = H_fn(t, at.col(t), theta, known_params, known_tv_params);
       HHt = HHt * HHt.t();
-      HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      if (na_y.n_elem > 0) {
+        Zg.rows(na_y).zeros();
+        HHt.rows(na_y).zeros();
+        HHt.cols(na_y).zeros();
+        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      }
+      
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       // first check avoid armadillo warnings
       bool chol_ok = Ft.is_finite() && arma::all(Ft.diag() > 0);
@@ -449,10 +472,15 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
         i++;
         
         Zg = Z_gn(t, atthat, theta, known_params, known_tv_params);
-        Zg.rows(na_y).zeros();
         HHt = H_fn(t, atthat, theta, known_params, known_tv_params);
         HHt = HHt * HHt.t();
-        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        
+        if (na_y.n_elem > 0) {
+          Zg.rows(na_y).zeros();
+          HHt.rows(na_y).zeros();
+          HHt.cols(na_y).zeros();
+          HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        }
         
         Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
         // first check avoid armadillo warnings
@@ -484,7 +512,6 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
         2.0 * arma::accu(arma::log(arma::diagvec(cholF))) + Fv.t() * Fv);
     } else {
       att.col(t) = at.col(t);
-      obs(t) = 0;
     }
     
     at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
@@ -496,10 +523,13 @@ double nlg_ssm::ekf_smoother(arma::mat& at, arma::cube& Pt, const unsigned int i
   
   arma::vec rt(m, arma::fill::zeros);
   arma::mat Nt(m, m, arma::fill::zeros);
+  
   for (int t = (n - 1); t >= 0; t--) {
     arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
-    if (obs(t)) {
+    arma::uvec na_y = arma::find_nonfinite(y.col(t));
+    if (na_y.n_elem < p) {
       arma::mat Zg = Z_gn(t, at.col(t), theta, known_params, known_tv_params);
+      Zg.rows(na_y).zeros();
       arma::mat L = Tg * (arma::eye(m, m) - Kt.slice(t) * Zg);
       rt = ZFinv.slice(t) * vt.col(t) + L.t() * rt;
       Nt = arma::symmatu(ZFinv.slice(t) * Zg + L.t() * Nt * L);
@@ -525,8 +555,6 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
   arma::cube ZFinv(m, p, n,arma::fill::zeros);
   arma::cube Kt(m, p, n,arma::fill::zeros);
   
-  arma::uvec obs(n, arma::fill::ones);
-  
   arma::mat att(m, n);
   
   const double LOG2PI = std::log(2.0 * M_PI);
@@ -540,10 +568,15 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
     if (na_y.n_elem < p) {
       
       arma::mat Zg = Z_gn(t, at.col(t), theta, known_params, known_tv_params);
-      Zg.rows(na_y).zeros();
       arma::mat HHt = H_fn(t, at.col(t), theta, known_params, known_tv_params);
       HHt = HHt * HHt.t();
-      HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      
+      if (na_y.n_elem > 0) {
+        Zg.rows(na_y).zeros();
+        HHt.rows(na_y).zeros();
+        HHt.cols(na_y).zeros();
+        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+      }
       
       arma::mat Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
       // first check avoid armadillo warnings
@@ -568,10 +601,15 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
       while (diff > 1e-4 && i < iekf_iter) {
         i++;
         Zg = Z_gn(t, atthat, theta, known_params, known_tv_params);
-        Zg.rows(na_y).zeros();
-        HHt =H_fn(t, atthat, theta, known_params, known_tv_params);
+        HHt = H_fn(t, atthat, theta, known_params, known_tv_params);
         HHt = HHt * HHt.t();
-        HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        
+        if (na_y.n_elem > 0) {
+          Zg.rows(na_y).zeros();
+          HHt.rows(na_y).zeros();
+          HHt.cols(na_y).zeros();
+          HHt.submat(na_y, na_y) = arma::eye(na_y.n_elem, na_y.n_elem);
+        }
         
         Ft = Zg * Pt.slice(t) * Zg.t() + HHt;
         
@@ -604,7 +642,6 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
         2.0 * arma::accu(arma::log(arma::diagvec(cholF))) + Fv.t() * Fv);
     } else {
       att.col(t) = at.col(t);
-      obs(t) = 0;
     }
     
     at.col(t + 1) = T_fn(t, att.col(t), theta, known_params, known_tv_params);
@@ -618,8 +655,10 @@ double nlg_ssm::ekf_fast_smoother(arma::mat& at, const unsigned int iekf_iter) c
   arma::vec rt(m, arma::fill::zeros);
   for (int t = (n - 1); t >= 0; t--) {
     arma::mat Tg = T_gn(t, att.col(t), theta, known_params, known_tv_params);
-    if (obs(t)) {
+    arma::uvec na_y = arma::find_nonfinite(y.col(t));
+    if (na_y.n_elem < p) {
       arma::mat Zg = Z_gn(t, at.col(t), theta, known_params, known_tv_params);
+      Zg.rows(na_y).zeros();
       arma::mat L = Tg * (arma::eye(m, m) - Kt.slice(t) * Zg);
       rt = ZFinv.slice(t) * vt.col(t) + L.t() * rt;
     } else {
@@ -705,7 +744,7 @@ double nlg_ssm::ukf(arma::mat& at, arma::mat& att, arma::cube& Pt,
       
       arma::mat cholF = arma::chol(pred_var);
       arma::mat inv_cholF = arma::inv(arma::trimatu(cholF));
-      arma::vec Fv = inv_cholF * v; 
+      arma::vec Fv = inv_cholF.t() * v; 
       logLik -= 0.5 * arma::as_scalar(obs_y.n_elem * LOG2PI + 
         2.0 * arma::accu(arma::log(arma::diagvec(cholF))) + Fv.t() * Fv);
     } else {
@@ -1119,7 +1158,6 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
     alpha.slice(i).col(0) = a1 + L_P1 * um;
     
   }
-  
   std::uniform_real_distribution<> unif(0.0, 1.0);
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
@@ -1164,7 +1202,7 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
       alpha.slice(i).col(t + 1) = T_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) + 
         R_fn(t, alphatmp.col(i), theta, known_params, known_tv_params) * uk;
     }
-
+    
     if (t < (n - 1) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       
@@ -1190,7 +1228,6 @@ double nlg_ssm::bsf_filter(const unsigned int nsim, arma::cube& alpha,
 
 double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
   arma::mat& weights, arma::umat& indices) {
-  
   arma::vec a1 = a1_fn(theta, known_params);
   arma::mat P1 = P1_fn(theta, known_params);
   
@@ -1215,11 +1252,9 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
   std::uniform_real_distribution<> unif(0.0, 1.0);
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
-  
   arma::uvec na_y = arma::find_nonfinite(y.col(0));
   if (na_y.n_elem < p) { 
     weights.col(0) = log_obs_density(0, alpha);
-    
     for (unsigned int i = 0; i < nsim; i++) {
       weights(i, 0) +=  dmvnorm(alpha.slice(i).col(0), a1, P1, false, true) -
         dmvnorm(alpha.slice(i).col(0), att1, L, true, true);
@@ -1240,7 +1275,6 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
     weights.col(0).ones();
     normalized_weights.fill(1.0 / nsim);
   }
-  
   for (unsigned int t = 0; t < n; t++) {
     
     arma::vec r(nsim);
@@ -1253,16 +1287,20 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
     arma::mat att(m, nsim);
     arma::cube Ptt(m, m, nsim);
     arma::mat alphatmp(m, nsim);
-    
     for (unsigned int i = 0; i < nsim; i++) {
       alphatmp.col(i) = alpha.slice(indices(i, t)).col(t);
       arma::mat Rt = R_fn(t,  alphatmp.col(i), theta, known_params, known_tv_params);
       arma::mat Pt = Rt * Rt.t();
       arma::vec at = T_fn(t, alphatmp.col(i), theta, known_params, known_tv_params);
       arma::vec tmp(m);
-      ekf_update_step(t + 1, y.col(t + 1), at, Pt, tmp, Ptt.slice(i));
-      att.col(i) = tmp;
-      Ptt.slice(i) = psd_chol(Ptt.slice(i));
+      if (t < (n - 1)) {
+        ekf_update_step(t + 1, y.col(t + 1), at, Pt, tmp, Ptt.slice(i));
+        att.col(i) = tmp;
+        Ptt.slice(i) = psd_chol(Ptt.slice(i));
+      } else {
+        att.col(i) = at;
+        Ptt.slice(i) = Pt;  
+      }
     }
     
     for (unsigned int i = 0; i < nsim; i++) {
@@ -1272,7 +1310,6 @@ double nlg_ssm::ekf_filter(const unsigned int nsim, arma::cube& alpha,
       }
       alpha.slice(i).col(t + 1) = att.col(i) + Ptt.slice(i) * um;
     } 
-    
     if (t < (n - 1) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
       weights.col(t + 1) = log_obs_density(t + 1, alpha);
       for (unsigned int i = 0; i < nsim; i++) {
