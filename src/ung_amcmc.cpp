@@ -137,7 +137,8 @@ void ung_amcmc::approx_mcmc(T model, const bool end_ram, const bool local_approx
   double const_term = compute_const_term(model, approx_model);
   // log-likelihood approximation
   double approx_loglik = gaussian_loglik + const_term + sum_scales;
-  
+  if (!std::isfinite(approx_loglik))
+    Rcpp::stop("Initial log-likelihood is not finite.");
   double acceptance_prob = 0.0;
   std::normal_distribution<> normal(0.0, 1.0);
   std::uniform_real_distribution<> unif(0.0, 1.0);
@@ -190,7 +191,7 @@ void ung_amcmc::approx_mcmc(T model, const bool end_ram, const bool local_approx
       double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
       
       acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
-        logprior_prop - logprior));
+        logprior_prop - logprior + model.log_proposal_ratio(theta_prop, theta)));
       
       if (unif(model.engine) < acceptance_prob) {
         if (i > n_burnin) {

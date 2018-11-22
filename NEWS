@@ -1,3 +1,9 @@
+bssm 0.1.6-1
+==============
+  * Fixed wrong dimension declarations in pseudo-marginal MCMC and logLik methods for SDE and ng_ar1 models.
+  * Added a missing Jacobian for ng_bsm and bsm models using IS-correction.
+  * Changed internal parameterization of ng_bsm and bsm models from log(1+theta) to log(theta).
+  
 bssm 0.1.5 (Release date: 2018-05-23)
 ==============
   * Fixed the Cholesky decomposition in filtering recursions of multivariate models.

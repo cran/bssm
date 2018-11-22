@@ -110,7 +110,7 @@ run_mcmc.bsm <- function(object, n_iter, type = "full",
   
   names_ind <- !object$fixed & c(TRUE, TRUE, object$slope, object$seasonal)
   object$theta[c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]] <- 
-    log(1 + object$theta[c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]])
+    log(object$theta[c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]])
   
   if (missing(S)) {
     S <- diag(0.1 * pmax(0.1, abs(object$theta)), length(object$theta))
@@ -132,7 +132,7 @@ run_mcmc.bsm <- function(object, n_iter, type = "full",
   
   colnames(out$theta) <- rownames(out$S) <- colnames(out$S) <- names(object$theta)
   out$theta[, c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]] <- 
-    exp(out$theta[, c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]]) - 1
+    exp(out$theta[, c("sd_y", "sd_level", "sd_slope", "sd_seasonal")[names_ind]])
   out$call <- match.call()
   out$seed <- seed
   out$n_iter <- n_iter
@@ -316,7 +316,7 @@ run_mcmc.ng_bsm <-  function(object, n_iter, nsim_states, type = "full",
     c(!object$fixed & c(TRUE, object$slope, object$seasonal), object$noise)
   transformed <- c(c("sd_level", "sd_slope", "sd_seasonal", "sd_noise")[names_ind], 
     if (object$distribution == "negative binomial") "nb_dispersion")
-  object$theta[transformed] <- log(1 + object$theta[transformed])
+  object$theta[transformed] <- log(object$theta[transformed])
   
   if (missing(S)) {
     S <- diag(0.1 * pmax(0.1, abs(object$theta)), length(object$theta))
@@ -361,7 +361,7 @@ run_mcmc.ng_bsm <-  function(object, n_iter, nsim_states, type = "full",
   
   
   colnames(out$theta) <- rownames(out$S) <- colnames(out$S) <- names(object$theta)
-  out$theta[, transformed] <- exp(out$theta[, transformed]) - 1
+  out$theta[, transformed] <- exp(out$theta[, transformed])
   
   out$n_iter <- n_iter
   out$n_burnin <- n_burnin
@@ -409,19 +409,19 @@ run_mcmc.ng_ar1 <-  function(object, n_iter, nsim_states, type = "full",
     c("poisson", "binomial", "negative binomial"))
   
   if (method == "da") {
-    out <- nongaussian_da_mcmc(object, 
+    out <- nongaussian_da_mcmc(object, type, 
       nsim_states, n_iter, n_burnin, n_thin, gamma, target_acceptance, S,
       seed, end_adaptive_phase, n_threads, local_approx, object$initial_mode,
       max_iter, conv_tol, simulation_method, model_type = 4L, 0, 0, 0)
   } else {
     if(method == "pm") {
-      out <- nongaussian_pm_mcmc(object, 
+      out <- nongaussian_pm_mcmc(object, type,
         nsim_states, n_iter, n_burnin, n_thin, gamma, target_acceptance, S,
         seed, end_adaptive_phase, n_threads, local_approx, object$initial_mode,
         max_iter, conv_tol, simulation_method,
         model_type = 4L, 0, 0, 0)
     } else {
-      out <- nongaussian_is_mcmc(object, 
+      out <- nongaussian_is_mcmc(object, type,
         nsim_states, n_iter, n_burnin, n_thin, gamma, target_acceptance, S,
         seed, end_adaptive_phase, n_threads, local_approx, object$initial_mode,
         max_iter, conv_tol, simulation_method,
