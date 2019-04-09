@@ -2,10 +2,18 @@ Package: bssm
 Type: Package
 Title: Bayesian Inference of Non-Linear and Non-Gaussian State Space
         Models
-Version: 0.1.6-1
-Date: 2018-11-20
-Author: Jouni Helske, Matti Vihola
-Maintainer: Jouni Helske <jouni.helske@iki.fi>
+Version: 0.1.7
+Date: 2019-04-04
+Authors@R: 
+    c(person(given = "Jouni",
+           family = "Helske",
+           role = c("aut", "cre"),
+           email = "jouni.helske@iki.fi",
+           comment = c(ORCID = "0000-0001-7130-793X")),
+      person(given = "Matti",
+           family = "Vihola",
+           role = "aut",
+           comment = c(ORCID = "0000-0002-8041-7222")))
 Description: Efficient methods for Bayesian inference of state space models 
     via particle Markov chain Monte Carlo and parallel importance sampling type weighted 
     Markov chain Monte Carlo (Vihola, Helske, and Franks, 2017, <arXiv:1609.02541>). 
@@ -26,6 +34,9 @@ BugReports: https://github.com/helske/bssm/issues
 ByteCompile: true
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2018-11-20 09:09:01 UTC; jouhe21
+Packaged: 2019-04-09 13:22:28 UTC; jouhe21
+Author: Jouni Helske [aut, cre] (<https://orcid.org/0000-0001-7130-793X>),
+  Matti Vihola [aut] (<https://orcid.org/0000-0002-8041-7222>)
+Maintainer: Jouni Helske <jouni.helske@iki.fi>
 Repository: CRAN
-Date/Publication: 2018-11-22 13:50:15 UTC
+Date/Publication: 2019-04-09 21:36:12 UTC

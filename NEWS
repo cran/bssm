@@ -1,4 +1,11 @@
-bssm 0.1.6-1
+bssm 0.1.7 (Release date: 2019-03-19)
+==============
+  * Fixed a bug in EKF smoother which resulted wrong smoothed state estimates in 
+    case of partially missing multivariate observations. Thanks for Santeri Karppinen for spotting the bug. 
+  * Added twisted SMC based simulation smoothing algorithm for Gaussian models, as an alternative to 
+    Kalman smoother based simulation.
+  
+bssm 0.1.6-1 (Release date: 2018-11-20)
 ==============
   * Fixed wrong dimension declarations in pseudo-marginal MCMC and logLik methods for SDE and ng_ar1 models.
   * Added a missing Jacobian for ng_bsm and bsm models using IS-correction.

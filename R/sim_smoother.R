@@ -8,7 +8,9 @@
 #'
 #' @param object Model object.
 #' @param nsim Number of independent samples.
-#' @param use_antithetic Use an antithetic variable for location. Default is \code{FALSE}.
+#' @param use_antithetic Use an antithetic variable for location. Default is \code{FALSE}. Only used if \code{method} is "dk".
+#' @param method If \code{"dk"} (default), use simulation smoothing algorithm by Durbin and Koopman (2002). If \code{"psi"}, use twisted SMC. 
+#' Only used for Gaussian models of class \code{"gssm"}, \code{"bsm"}, and \code{"ar1"}.
 #' @param seed Seed for the random number generator.
 #' @param ... Ignored.
 #' @return An array containing the generated samples.
@@ -22,20 +24,49 @@ sim_smoother <- function(object, nsim, seed, use_antithetic = FALSE, ...) {
   UseMethod("sim_smoother", object)
 }
 #' @method sim_smoother gssm
+#' @rdname sim_smoother
 #' @export
 sim_smoother.gssm <- function(object, nsim = 1, 
-  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
-
+  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, method = "dk", ...) {
+  
+  method <- match.arg(method, c("psi", "dk"))
+  if (method == "dk") {
   out <- gaussian_sim_smoother(object, nsim, use_antithetic, seed, model_type = 1L)
+  } else {
+    out <- gaussian_psi_smoother(object, nsim, seed, 1L)
+  }
   rownames(out) <- names(object$a1)
   aperm(out, c(2, 1, 3))[-(length(object$y) + 1), , , drop = FALSE]
 }
 #' @method sim_smoother bsm
+#' @rdname sim_smoother
 #' @export
 sim_smoother.bsm <- function(object, nsim = 1, 
-  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
+  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, method = "dk", ...) {
 
-  out <- gaussian_sim_smoother(object, nsim, use_antithetic, seed, model_type = 2L)
+  method <- match.arg(method, c("psi", "dk"))
+  if (method == "dk") {
+    out <- gaussian_sim_smoother(object, nsim, use_antithetic, seed, model_type = 2L)
+  } else {
+    out <- gaussian_psi_smoother(object, nsim, seed, 2L)
+  }
+
+  rownames(out) <- names(object$a1)
+  aperm(out, c(2, 1, 3))[-(length(object$y) + 1), , , drop = FALSE]
+}
+#' @method sim_smoother ar1
+#' @rdname sim_smoother
+#' @export
+sim_smoother.ar1 <- function(object, nsim = 1, 
+  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, method = "dk", ...) {
+  
+  method <- match.arg(method, c("psi", "dk"))
+  if (method == "dk") {
+    out <- gaussian_sim_smoother(object, nsim, use_antithetic, seed, model_type = 3L)
+  } else {
+    out <- gaussian_psi_smoother(object, nsim, seed, 2L)
+  }
+  
   rownames(out) <- names(object$a1)
   aperm(out, c(2, 1, 3))[-(length(object$y) + 1), , , drop = FALSE]
 }
@@ -55,6 +86,7 @@ sim_smoother.lgg_ssm <- function(object, nsim = 1,
 }
 
 #' @method sim_smoother ngssm
+#' @rdname sim_smoother
 #' @export
 sim_smoother.ngssm <- function(object, nsim = 1,
   seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
@@ -62,6 +94,7 @@ sim_smoother.ngssm <- function(object, nsim = 1,
     use_antithetic = use_antithetic, seed = seed)
 }
 #' @method sim_smoother ng_bsm
+#' @rdname sim_smoother
 #' @export
 sim_smoother.ng_bsm <- function(object, nsim = 1,
   seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
@@ -69,6 +102,7 @@ sim_smoother.ng_bsm <- function(object, nsim = 1,
     use_antithetic = use_antithetic, seed = seed)
 }
 #' @method sim_smoother svm
+#' @rdname sim_smoother
 #' @export
 sim_smoother.svm <- function(object, nsim = 1, 
   seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
@@ -76,6 +110,7 @@ sim_smoother.svm <- function(object, nsim = 1,
     use_antithetic = use_antithetic, seed = seed)
 }
 #' @method sim_smoother ng_ar1
+#' @rdname sim_smoother
 #' @export
 sim_smoother.ng_ar1 <- function(object, nsim = 1,
   seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
