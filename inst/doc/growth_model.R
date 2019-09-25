@@ -1,5 +1,6 @@
 ## ----setup, include=FALSE------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
+options(tinytex.verbose = TRUE)
 
 ## ----data----------------------------------------------------------------
 set.seed(1)
