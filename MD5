@@ -1,6 +1,6 @@
-5678ef203073f43fc171a18764804946 *DESCRIPTION
+4ac25d29332903375f84b4ec7c9b9cc1 *DESCRIPTION
 a4f202cd688dc9b28ef63c98bba4fa89 *NAMESPACE
-2b63f515ac29d55bdbf6a13f78f5ca81 *NEWS
+bf21076660e8e51aa76908ab0e15f29c *NEWS
 71e7cb40b3fa1fa8c144f76ca1e9afac *R/RcppExports.R
 9fc5caec51e40d4e6a2bb30976a604aa *R/approx.R
 66157de3b3b2328f1494e1247d5ee81e *R/as_gssm.R
@@ -15,7 +15,7 @@ f9668bbf90e0bc4c0fbe4c129b8d9c7e *R/loglik.R
 77b9e2eaca79f211e45e897e0a849d60 *R/models.R
 d4b092dde9dc9d6843e56b5fe7b5fac3 *R/particle_smoother.R
 123f7d7e619940d29c23178ce0afbf97 *R/plot.predict_bssm.R
-ca7cfe40f90daff097b7da2c18e9b3d6 *R/predict.R
+dd792c301701654de53430614ac364f2 *R/predict.R
 a5305a2597ff32bbd5ba0b24eb9560b5 *R/print_mcmc.R
 daaf42463ba54f0eb66bf6b41f990f3c *R/priors.R
 a394bbc65f560ee6c55f403372f1c46b *R/run_mcmc.R
@@ -26,13 +26,13 @@ d46855e87ea85a1a5657cff0dc1f6dd7 *R/sim_smoother.R
 0a915555945796c8a4c9dfb9eb93437c *data/drownings.rda
 8260386334f3461351dce811e6848c63 *data/exchange.rda
 99222b531a62f0b64435c27be008815e *data/poisson_series.rda
-2d18034f2d465b1b359875505c7356b8 *inst/CITATION
+022467a05b62c41730f7e4d2f26b0564 *inst/CITATION
 68d1eeba64fcc7834e73985b6cd40133 *inst/doc/bssm.R
 5d02553f83d8f24a3af90732d988fef0 *inst/doc/bssm.Rmd
-48ec65d3b05689872132db96089627e2 *inst/doc/bssm.html
+00a0fe9359219e6e85f509ccada2b10d *inst/doc/bssm.html
 ce0a3e6eb307d2cc86b2288a51cde0f3 *inst/doc/growth_model.R
 f812619974bee68e96b54088c0dad997 *inst/doc/growth_model.Rmd
-0054aeaade1dbd3cc2214a71af050e1c *inst/doc/growth_model.html
+4694dfce7077751c4367b6d5c34bf5a3 *inst/doc/growth_model.html
 9269ac08bad8a85ff9256bd3c85e670f *man/ar1.Rd
 f92b49ccd7aa4f9b706fe212cf849808 *man/as_gssm.Rd
 998b8d7c20fad205c6a24c96082884f2 *man/autoplot.predict_bssm.Rd
@@ -58,7 +58,7 @@ c2da4de104b71aea04ffc19c4666cdb4 *man/ngssm.Rd
 b7baeb789f7cb53216d4c7dc62d14beb *man/nlg_ssm.Rd
 0be30869092ea52444005722ff51b549 *man/particle_smoother.Rd
 555e6333a8392964c56d80204929c556 *man/poisson_series.Rd
-a91233665592e2e919c6fdd43d16933f *man/predict.Rd
+ecc6ed60bda2276e3556e00b494974c3 *man/predict.Rd
 9ae33aaa7f8aa2f41297e3f8160e94ef *man/print.mcmc_output.Rd
 3fbdf2d30701313f7c0820f80872fe38 *man/priors.Rd
 489579ecb6b164fb0e15237804e89ffb *man/run_mcmc.Rd
@@ -149,7 +149,7 @@ b494064ae8424ccf86383b03eb1b8d24 *tests/testthat/test_approx.R
 6fd52040b203081828e36b7073758ac4 *tests/testthat/test_basics.R
 cc59b84e68e375759c1bb0dd50dc69a3 *tests/testthat/test_bootstrap_filter.R
 df86fbb5f04da28f88aea0fd99d7de66 *tests/testthat/test_is.R
-6e633203244a79b52d27e2bfccc370dd *tests/testthat/test_mcmc.R
+a3a382c4b7f47ccf62a0b0867d63065f *tests/testthat/test_mcmc.R
 7d22831c6f495ce124478065d376d724 *tests/testthat/test_models.R
 5d02553f83d8f24a3af90732d988fef0 *vignettes/bssm.Rmd
 c588a80257277fa8a23d8ca754492cc4 *vignettes/bssm.bib

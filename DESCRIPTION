@@ -2,8 +2,8 @@ Package: bssm
 Type: Package
 Title: Bayesian Inference of Non-Linear and Non-Gaussian State Space
         Models
-Version: 0.1.8
-Date: 2019-09-23
+Version: 0.1.8-1
+Date: 2020-01-07
 Authors@R: 
     c(person(given = "Jouni",
            family = "Helske",
@@ -34,9 +34,9 @@ BugReports: https://github.com/helske/bssm/issues
 ByteCompile: true
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2019-09-24 18:28:53 UTC; jovetale
+Packaged: 2020-01-06 17:35:47 UTC; jovetale
 Author: Jouni Helske [aut, cre] (<https://orcid.org/0000-0001-7130-793X>),
   Matti Vihola [aut] (<https://orcid.org/0000-0002-8041-7222>)
 Maintainer: Jouni Helske <jouni.helske@iki.fi>
 Repository: CRAN
-Date/Publication: 2019-09-25 13:50:06 UTC
+Date/Publication: 2020-01-07 08:50:07 UTC
