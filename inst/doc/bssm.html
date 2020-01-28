@@ -613,8 +613,8 @@ Rcpp::List create_xptrs() {
 <p>We can then compile the file and construct the model as</p>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;lgg_ssm_template.cpp&quot;, rebuild = TRUE, cleanupCacheDir = TRUE)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork):
-## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpAPeq8n/
-## Rbuild19f835933577/bssm/vignettes/../inst/include&quot;: The system cannot find
+## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpWEVRR1/
+## Rbuild11e8341462ed/bssm/vignettes/../inst/include&quot;: The system cannot find
 ## the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()
 bsm_model2 &lt;- lgg_ssm(y = nhtemp, Z = pntrs$Z, H = pntrs$H, T = pntrs$T, R = pntrs$R, 
@@ -643,8 +643,8 @@ y &lt;- rpois(100, exp(x[-1]))</code></pre>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;sde_ssm_template.cpp&quot;, rebuild = TRUE,  
   cleanupCacheDir = TRUE)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork):
-## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpAPeq8n/
-## Rbuild19f835933577/bssm/vignettes/../inst/include&quot;: The system cannot find
+## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpWEVRR1/
+## Rbuild11e8341462ed/bssm/vignettes/../inst/include&quot;: The system cannot find
 ## the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()
 sde_model &lt;- sde_ssm(y, pntrs$drift, pntrs$diffusion, 
@@ -711,7 +711,7 @@ mcmc_bsm</code></pre>
 ## 
 ## Run time:
 ##    user  system elapsed 
-##    5.50    0.04    5.56</code></pre>
+##    6.72    0.00    6.72</code></pre>
 <p>Note that all MCMC algorithms of <code>bssm</code> output also state forecasts for the timepoint <span class="math inline">\(n + 1\)</span>, the summary statistics of this state is also shown in the output above.</p>
 <p>For plotting purposes, we’ll use <code>bayesplot</code> package for the figures after expanding our jump chain representation. The function <code>expand_sample</code> expands the jump chain representation to typical Markov chain, and returns an object of class <code>mcmc</code> of the <code>coda</code> package <span class="citation">(Plummer et al. <a href="#ref-coda" role="doc-biblioref">2006</a>)</span> (thus the plotting and diagnostic methods of <code>coda</code> can also be used).</p>
 <pre class="r"><code>theta &lt;- expand_sample(mcmc_bsm, &quot;theta&quot;)

@@ -426,8 +426,8 @@ y &lt;- ts(p + rnorm(length(t), 0, 5))</code></pre>
 <p>After creating the file for <code>C++</code> functions, you need to compile the file using <code>Rcpp</code>:</p>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;nlg_ssm_template.cpp&quot;)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork):
-## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpAPeq8n/
-## Rbuild19f835933577/bssm/vignettes/../inst/include&quot;: The system cannot find
+## path[1]=&quot;C:/Users/jovetale/AppData/Local/Temp/RtmpWEVRR1/
+## Rbuild11e8341462ed/bssm/vignettes/../inst/include&quot;: The system cannot find
 ## the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()</code></pre>
 <p>This takes a few seconds. et’s make less than optimal initial guess for <span class="math inline">\(\theta\)</span>, the standard deviation of observational level noise, the standard deviations of the process noises (which were zero but let’s pretend that we do not know that), and define the prior distribution for <span class="math inline">\(\alpha_1\)</span>:</p>
