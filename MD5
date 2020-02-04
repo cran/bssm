@@ -1,6 +1,6 @@
-31ac304319eda79c3eb2dba344c41e1f *DESCRIPTION
+ec51c7aae8e6872f0204ba8a736dee77 *DESCRIPTION
 a692bef32e2758c59dcb6f60504abcef *NAMESPACE
-80e9c5d8368a4caa35b3c71285309235 *NEWS
+25244373a470a4c5a07ac3eafec0847f *NEWS
 71e7cb40b3fa1fa8c144f76ca1e9afac *R/RcppExports.R
 9fc5caec51e40d4e6a2bb30976a604aa *R/approx.R
 66157de3b3b2328f1494e1247d5ee81e *R/as_gssm.R
@@ -16,7 +16,7 @@ f9668bbf90e0bc4c0fbe4c129b8d9c7e *R/loglik.R
 d4b092dde9dc9d6843e56b5fe7b5fac3 *R/particle_smoother.R
 123f7d7e619940d29c23178ce0afbf97 *R/plot.predict_bssm.R
 dd792c301701654de53430614ac364f2 *R/predict.R
-5020111e1f93ccce49b7567405fc6f95 *R/print_mcmc.R
+620024f0efc7d6f8ae2dea56cd7b2317 *R/print_mcmc.R
 daaf42463ba54f0eb66bf6b41f990f3c *R/priors.R
 057017e9cf9c99b5270b6bb7e7e6cb93 *R/run_mcmc.R
 d46855e87ea85a1a5657cff0dc1f6dd7 *R/sim_smoother.R
@@ -29,10 +29,10 @@ d46855e87ea85a1a5657cff0dc1f6dd7 *R/sim_smoother.R
 022467a05b62c41730f7e4d2f26b0564 *inst/CITATION
 68d1eeba64fcc7834e73985b6cd40133 *inst/doc/bssm.R
 5d02553f83d8f24a3af90732d988fef0 *inst/doc/bssm.Rmd
-8486bdbea0225b165367d2290e7899aa *inst/doc/bssm.html
+d72e10b9cd3512d1b5d7ad5d2c900aac *inst/doc/bssm.html
 ce0a3e6eb307d2cc86b2288a51cde0f3 *inst/doc/growth_model.R
 f812619974bee68e96b54088c0dad997 *inst/doc/growth_model.Rmd
-66ccf7ab6b92676d8676f709bb26cd33 *inst/doc/growth_model.html
+2db3a913df60679aa13d795bf283090a *inst/doc/growth_model.html
 9269ac08bad8a85ff9256bd3c85e670f *man/ar1.Rd
 f92b49ccd7aa4f9b706fe212cf849808 *man/as_gssm.Rd
 998b8d7c20fad205c6a24c96082884f2 *man/autoplot.predict_bssm.Rd
@@ -44,7 +44,7 @@ e2f439893960495edf1e2e128e1331a6 *man/ekf.Rd
 614402e0405c4424e96b91cb556639f2 *man/ekf_smoother.Rd
 b1ddce6056cb8afdc2c2432216efab2d *man/ekpf_filter.Rd
 15cc321a5eb44c425aad875a3d470253 *man/exchange.Rd
-6438887e5d145f3da4682d771ad2a03b *man/expand_sample.Rd
+6648bb79ddf851a3627729f3e1f1f74e *man/expand_sample.Rd
 3dd2b5a0b3bf831d26c476860ca8d65e *man/gaussian_approx.Rd
 99722580f30338f8fa60505a69aaf25a *man/gssm.Rd
 1552ddcd7e716bf167aee95e90ce16c4 *man/importance_sample.Rd
@@ -133,7 +133,7 @@ df85b9c1a6db8cd1cb3a7a7b325c6545 *src/ugg_ar1.h
 7ae04d20a7be12d9e81635c5bfd8697d *src/ugg_bsm.h
 098b80656c6cd2e2da261e84769828d8 *src/ugg_ssm.cpp
 11810ac556d76a11b2ce9b64340c51b1 *src/ugg_ssm.h
-26efd094338964cbdebe218f248be2e8 *src/ung_amcmc.cpp
+a336a870a303628e6b2b24cb779ad4a7 *src/ung_amcmc.cpp
 6ee13dcf589032543f83a909a01e974d *src/ung_amcmc.h
 c6401cf33a3431367e4970ab5a520db9 *src/ung_ar1.cpp
 e24298b48b9fff2ae3ae3ebeac1154fa *src/ung_ar1.h
