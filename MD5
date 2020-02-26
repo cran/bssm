@@ -1,6 +1,6 @@
-ec51c7aae8e6872f0204ba8a736dee77 *DESCRIPTION
+9a76b4498e4b6b00c636553f03edc00b *DESCRIPTION
 a692bef32e2758c59dcb6f60504abcef *NAMESPACE
-25244373a470a4c5a07ac3eafec0847f *NEWS
+d229292e9362a8fcd1178aac3dcaf54c *NEWS
 71e7cb40b3fa1fa8c144f76ca1e9afac *R/RcppExports.R
 9fc5caec51e40d4e6a2bb30976a604aa *R/approx.R
 66157de3b3b2328f1494e1247d5ee81e *R/as_gssm.R
@@ -16,7 +16,7 @@ f9668bbf90e0bc4c0fbe4c129b8d9c7e *R/loglik.R
 d4b092dde9dc9d6843e56b5fe7b5fac3 *R/particle_smoother.R
 123f7d7e619940d29c23178ce0afbf97 *R/plot.predict_bssm.R
 dd792c301701654de53430614ac364f2 *R/predict.R
-620024f0efc7d6f8ae2dea56cd7b2317 *R/print_mcmc.R
+c8f8a76d3ef16bf6e29ab3f838ab7b8d *R/print_mcmc.R
 daaf42463ba54f0eb66bf6b41f990f3c *R/priors.R
 057017e9cf9c99b5270b6bb7e7e6cb93 *R/run_mcmc.R
 d46855e87ea85a1a5657cff0dc1f6dd7 *R/sim_smoother.R
@@ -29,10 +29,10 @@ d46855e87ea85a1a5657cff0dc1f6dd7 *R/sim_smoother.R
 022467a05b62c41730f7e4d2f26b0564 *inst/CITATION
 68d1eeba64fcc7834e73985b6cd40133 *inst/doc/bssm.R
 5d02553f83d8f24a3af90732d988fef0 *inst/doc/bssm.Rmd
-d72e10b9cd3512d1b5d7ad5d2c900aac *inst/doc/bssm.html
+bb381fc6783d80921294ebd319e386b9 *inst/doc/bssm.html
 ce0a3e6eb307d2cc86b2288a51cde0f3 *inst/doc/growth_model.R
 f812619974bee68e96b54088c0dad997 *inst/doc/growth_model.Rmd
-2db3a913df60679aa13d795bf283090a *inst/doc/growth_model.html
+b4b12bd5afcba55d2355980aa5a962b5 *inst/doc/growth_model.html
 9269ac08bad8a85ff9256bd3c85e670f *man/ar1.Rd
 f92b49ccd7aa4f9b706fe212cf849808 *man/as_gssm.Rd
 998b8d7c20fad205c6a24c96082884f2 *man/autoplot.predict_bssm.Rd
@@ -101,7 +101,7 @@ aa9399bfde872339933cc7869b9fc47e *src/filter_smoother.cpp
 af15fb58b730b1dba2dbaeaa873982d6 *src/interval.h
 a99c5a36ba75a4c9b6dd1163517445a5 *src/lgg_ssm.cpp
 debfca767fc28c85e83a1bad2aae2eaa *src/lgg_ssm.h
-a431f2643f9774028b5be6c7c0462bf6 *src/mcmc.cpp
+73ac01110b8c58ffa8f692f624c7e533 *src/mcmc.cpp
 6ef8d24bfee29092acf4b7aff10e7dd9 *src/mcmc.h
 26cb1e4a960183e73881f464f9906578 *src/mgg_ssm.cpp
 5c5d2bec6eda9b2ba65e3af8ed01d6e4 *src/mgg_ssm.h

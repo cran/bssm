@@ -326,7 +326,7 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   const double conv_tol) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -339,20 +339,16 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   arma::vec mode_estimate = initial_mode;
   ugg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol);
   
-  // compute the log-likelihood of the approximate model
-  double gaussian_loglik = approx_model.log_likelihood();
-  
-  if (!std::isfinite(gaussian_loglik))
-    Rcpp::stop("Initial gaussian log-likelihood is not finite.");
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
   
-  double sum_scales = arma::accu(scales);
   // compute the constant term
   double const_term = compute_const_term(model, approx_model);
-  
+  // log-likelihood approximation
+  double sum_scales = arma::accu(scales);
+  double approx_loglik = approx_model.log_likelihood() + const_term + sum_scales;
+ 
   arma::cube alpha = approx_model.simulate_states(nsim_states, true);
   
   arma::vec weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
@@ -364,8 +360,8 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
   weighted_summary(alpha, alphahat_i, Vt_i, weights);
   
-  double ll_w = std::log(arma::accu(weights) / nsim_states);
-  double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
+  double ll_w = std::log(arma::mean(weights));
+  double loglik = approx_loglik + ll_w;
   if (!std::isfinite(loglik))
     Rcpp::stop("Initial log-likelihood is not finite.");
   double acceptance_prob = 0.0;
@@ -409,21 +405,25 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       // compute the constant term
       const_term = compute_const_term(model, approx_model);
       
+      double approx_loglik_prop = approx_model.log_likelihood() + const_term + sum_scales;
+      
       alpha = approx_model.simulate_states(nsim_states, true);
       weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
-      ll_w = std::log(arma::accu(weights) / nsim_states);
+      ll_w = std::log(arma::mean(weights));
+  
+      double loglik_prop = approx_loglik_prop + ll_w;
       
-      double loglik_prop =
-        approx_model.log_likelihood() + const_term + sum_scales + ll_w;
-      
-      //compute the acceptance probability
-      // use explicit min(...) as we need this value later
-      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik +
+      //compute the acceptance probability for RAM
+      acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
         logprior_prop - logprior + 
         model.log_proposal_ratio(theta_prop, theta)));
       
       //accept
-      if (unif(model.engine) < acceptance_prob) {
+      double log_alpha = loglik_prop - loglik +
+        logprior_prop - logprior + 
+        model.log_proposal_ratio(theta_prop, theta);
+      
+      if (log(unif(model.engine)) < log_alpha) {
         if (i > n_burnin) {
           acceptance_rate++;
           n_values++;
@@ -438,6 +438,7 @@ void mcmc::pm_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
             weighted_summary(alpha, alphahat_i, Vt_i, weights);
           }
         }
+        approx_loglik = approx_loglik_prop;
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -505,7 +506,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   const double conv_tol) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -518,9 +519,6 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   arma::vec mode_estimate = initial_mode;
   ugg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol);
   
-  // compute the log-likelihood of the approximate model
-  double gaussian_loglik = approx_model.log_likelihood();
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
@@ -529,7 +527,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   // compute the constant term
   double const_term = compute_const_term(model, approx_model);
   // log-likelihood approximation
-  double approx_loglik = gaussian_loglik + const_term + sum_scales;
+  double approx_loglik = approx_model.log_likelihood() + const_term + sum_scales;
   
   arma::cube alpha(m, n + 1, nsim_states);
   arma::mat weights(nsim_states, n + 1);
@@ -588,22 +586,23 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       // compute the constant term
       const_term = compute_const_term(model, approx_model);
       // compute the log-likelihood of the approximate model
-      gaussian_loglik = approx_model.log_likelihood();
-      approx_loglik = gaussian_loglik + const_term + sum_scales;
+      double approx_loglik_prop = approx_model.log_likelihood() + const_term + sum_scales;
       
-      double loglik_prop = model.psi_filter(approx_model, approx_loglik, scales,
+      double loglik_prop = model.psi_filter(approx_model, approx_loglik_prop, scales,
         nsim_states, alpha, weights, indices);
       
-      //compute the acceptance probability
-      // use explicit min(...) as we need this value later
-      // double q = proposal(theta, theta_prop);
-      
-      acceptance_prob = std::min(1.0, std::exp(loglik_prop - loglik +
+      //compute the acceptance probability for RAM
+      acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
         logprior_prop - logprior + 
         model.log_proposal_ratio(theta_prop, theta)));
       
       //accept
-      if (unif(model.engine) < acceptance_prob) {
+      double log_alpha = loglik_prop - loglik +
+        logprior_prop - logprior + 
+        model.log_proposal_ratio(theta_prop, theta);
+        
+      //accept
+      if (log(unif(model.engine)) < log_alpha) {
         if (i > n_burnin) {
           acceptance_rate++;
           n_values++;
@@ -618,6 +617,7 @@ void mcmc::pm_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
             weighted_summary(alpha, alphahat_i, Vt_i, w);
           }
         }
+        approx_loglik = approx_loglik_prop;
         loglik = loglik_prop;
         logprior = logprior_prop;
         theta = theta_prop;
@@ -678,7 +678,7 @@ template<class T>
 void mcmc::pm_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_states) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -834,9 +834,6 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   arma::vec mode_estimate = initial_mode;
   ugg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol);
   
-  // compute the log-likelihood of the approximate model
-  double gaussian_loglik = approx_model.log_likelihood();
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
@@ -845,7 +842,7 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   double const_term = compute_const_term(model, approx_model);
   // log-likelihood approximation
   double sum_scales = arma::accu(scales);
-  double approx_loglik = gaussian_loglik + const_term + sum_scales;
+  double approx_loglik = approx_model.log_likelihood() + const_term + sum_scales;
   
   arma::cube alpha = approx_model.simulate_states(nsim_states, true);
   arma::vec weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
@@ -856,8 +853,8 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
   arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
   weighted_summary(alpha, alphahat_i, Vt_i, weights);
   
-  double ll_w = std::log(arma::accu(weights) / nsim_states);
-  double loglik = gaussian_loglik + const_term + sum_scales + ll_w;
+  double ll_w = std::log(arma::mean(weights));
+  double loglik = approx_loglik + ll_w;
   if (!std::isfinite(loglik))
     Rcpp::stop("Initial log-likelihood is not finite.");
   double acceptance_prob = 0.0;
@@ -900,8 +897,7 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
       // compute the constant term
       const_term = compute_const_term(model, approx_model);
       // compute the log-likelihood of the approximate model
-      gaussian_loglik = approx_model.log_likelihood();
-      double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
+      double approx_loglik_prop = approx_model.log_likelihood() + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
       acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
@@ -913,7 +909,7 @@ void mcmc::da_mcmc_spdk(T model, const bool end_ram, const unsigned int nsim_sta
         
         alpha = approx_model.simulate_states(nsim_states, true);
         weights = arma::exp(model.importance_weights(approx_model, alpha) - sum_scales);
-        double ll_w_prop = std::log(arma::accu(weights) / nsim_states);
+        double ll_w_prop = std::log(arma::mean(weights));
         
         //just in case
         if(std::isfinite(ll_w_prop)) {
@@ -1003,7 +999,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   const double conv_tol) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -1016,9 +1012,6 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   arma::vec mode_estimate = initial_mode;
   ugg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol);
   
-  // compute the log-likelihood of the approximate model
-  double gaussian_loglik = approx_model.log_likelihood();
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
@@ -1026,7 +1019,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
   // compute the constant term
   double const_term = compute_const_term(model, approx_model);
   // log-likelihood approximation
-  double approx_loglik = gaussian_loglik + const_term + sum_scales;
+  double approx_loglik = approx_model.log_likelihood() + const_term + sum_scales;
   
   arma::cube alpha(m, n + 1, nsim_states);
   arma::mat weights(nsim_states, n + 1);
@@ -1083,8 +1076,7 @@ void mcmc::da_mcmc_psi(T model, const bool end_ram, const unsigned int nsim_stat
       // compute the constant term
       const_term = compute_const_term(model, approx_model);
       // compute the log-likelihood of the approximate model
-      gaussian_loglik = approx_model.log_likelihood();
-      double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
+      double approx_loglik_prop = approx_model.log_likelihood() + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
       acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
@@ -1184,7 +1176,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   const double conv_tol) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   
   // get the current values of theta
   arma::vec theta = model.theta;
@@ -1197,9 +1189,6 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   arma::vec mode_estimate = initial_mode;
   ugg_ssm approx_model = model.approximate(mode_estimate, max_iter, conv_tol);
   
-  // compute the log-likelihood of the approximate model
-  double gaussian_loglik = approx_model.log_likelihood();
-  
   // compute unnormalized mode-based correction terms
   // log[g(y_t | ^alpha_t) / ~g(y_t | ^alpha_t)]
   arma::vec scales = model.scaling_factors(approx_model, mode_estimate);
@@ -1207,7 +1196,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
   // compute the constant term
   double const_term = compute_const_term(model, approx_model);
   // log-likelihood approximation
-  double approx_loglik = gaussian_loglik + const_term + sum_scales;
+  double approx_loglik = approx_model.log_likelihood() + const_term + sum_scales;
   
   arma::cube alpha(m, n + 1, nsim_states);
   arma::mat weights(nsim_states, n + 1);
@@ -1264,8 +1253,7 @@ void mcmc::da_mcmc_bsf(T model, const bool end_ram, const unsigned int nsim_stat
       // compute the constant term
       const_term = compute_const_term(model, approx_model);
       // compute the log-likelihood of the approximate model
-      gaussian_loglik = approx_model.log_likelihood();
-      double approx_loglik_prop = gaussian_loglik + const_term + sum_scales;
+      double approx_loglik_prop = approx_model.log_likelihood() + const_term + sum_scales;
       
       // stage 1 acceptance probability, used in RAM as well
       acceptance_prob = std::min(1.0, std::exp(approx_loglik_prop - approx_loglik +
@@ -1350,7 +1338,7 @@ void mcmc::pm_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
@@ -1498,7 +1486,7 @@ void mcmc::pm_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram,
   const unsigned int nsim_states) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
@@ -1625,7 +1613,7 @@ void mcmc::da_mcmc_psi_nlg(nlg_ssm model, const bool end_ram,
   const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
@@ -1778,7 +1766,7 @@ void mcmc::da_mcmc_bsf_nlg(nlg_ssm model, const bool end_ram, const unsigned int
   const unsigned int max_iter, const double conv_tol, const unsigned int iekf_iter) {
   
   unsigned int m = model.m;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
@@ -1933,7 +1921,7 @@ void mcmc::pm_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
   const unsigned int nsim_states, const unsigned int L) {
   
   unsigned int m = 1;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
@@ -2059,7 +2047,7 @@ void mcmc::da_mcmc_bsf_sde(sde_ssm model, const bool end_ram,
   const unsigned int L_f, const bool target_full) {
   
   unsigned int m = 1;
-  unsigned n = model.n;
+  unsigned int n = model.n;
   // compute the log[p(theta)]
   double logprior = model.log_prior_pdf(model.theta);
   if (!arma::is_finite(logprior)) {
