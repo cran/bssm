@@ -1,3 +1,46 @@
+@article{Neal2011,
+	Author = {Neal, Radford M},
+	Date-Added = {2015-09-13 22:07:06 +0000},
+	Date-Modified = {2015-09-13 22:07:08 +0000},
+	Journal = {Handbook of Markov Chain Monte Carlo},
+	Title = {MCMC using Hamiltonian dynamics},
+	Volume = {2},
+	Year = {2011}
+	}
+
+@Manual{dplyr,
+    title = {dplyr: A Grammar of Data Manipulation},
+    author = {Hadley Wickham and Romain François and Lionel Henry and Kirill Müller},
+    year = {2020},
+    note = {https://dplyr.tidyverse.org, https://github.com/tidyverse/dplyr},
+  }
+  
+@Book{ggplot2,
+    author = {Hadley Wickham},
+    title = {ggplot2: Elegant Graphics for Data Analysis},
+    publisher = {Springer-Verlag New York},
+    year = {2016},
+    isbn = {978-3-319-24277-4},
+    url = {https://ggplot2.tidyverse.org},
+  }
+@Manual{hmisc,
+    title = {Hmisc: Harrell Miscellaneous},
+    author = {Frank E {Harrell Jr} and with contributions from Charles Dupont and many others.},
+    year = {2020},
+    note = {R package version 4.4-0},
+    url = {https://CRAN.R-project.org/package=Hmisc},
+  }
+@article{shephard-pitt,
+	ISSN = {00063444},
+	author = {Neil Shephard and Michael K. Pitt},
+	journal = {Biometrika},
+	number = {3},
+	pages = {653-667},
+	publisher = {[Oxford University Press, Biometrika Trust]},
+	title = {Likelihood analysis of non-{G}aussian measurement time series},
+	volume = {84},
+	year = {1997}
+}
 @article{kitagawa,
 title={{M}onte {C}arlo filter and smoother for non-{G}aussian nonlinear
 state space models},
@@ -155,7 +198,7 @@ year = {2016}
 }
 
 @article{DK2002,
-author = {Durbin, J. and Koopman, S. J.},
+author = {Durbin, James and Koopman, Siem Jan},
 title = {A Simple and Efficient Simulation Smoother for State Space Time Series Analysis},
 journal = {Biometrika},
 year = {2002},
@@ -185,6 +228,14 @@ pages = {603--615}
   note = "(with discussion)",
   pages = "269--342"
 }
+ @Misc{rstan,
+    title = {{RStan}: the {R} interface to {Stan}},
+    author = {{Stan Development Team}},
+    note = {R package version 2.19.2},
+    year = {2019},
+    url = {http://mc-stan.org/},
+  }
+  
 @Manual{helske-ram,
   title = {{ramcmc}: Robust Adaptive Metropolis Algorithm},
   author = {Jouni Helske},
@@ -201,6 +252,18 @@ number={arXiv:1706.09873},
 year={2017}
 }
 
+@article{Hoffman2014,
+	Author = {Hoffman, Matthew D and Gelman, Andrew},
+	Date-Added = {2015-09-13 22:05:30 +0000},
+	Date-Modified = {2015-09-13 22:11:47 +0000},
+	Journal = {The Journal of Machine Learning Research},
+	Number = {1},
+	Pages = {1593--1623},
+	Publisher = {JMLR. org},
+	Title = {The no-U-turn sampler: Adaptively setting path lengths in Hamiltonian Monte Carlo},
+	Volume = {15},
+	Year = {2014}}
+	
 @article{durbin-koopman1997,
 	author = {James Durbin and Siem Jan Koopman}, 
 	title = {Monte {C}arlo maximum likelihood estimation for non-{G}aussian state space models},
@@ -266,7 +329,7 @@ year={2017}
   }
 
 @article{DK2000,
-author = {Durbin, J. and Koopman, S. J.},
+author = {Durbin, James and Koopman, Siem Jan},
 title = {Time Series Analysis of Non-{G}aussian Observations Based on State Space Models from Both Classical and {B}ayesian Perspectives},
 journal = {Journal of Royal Statistical Society B},
 year = {2000},
@@ -276,7 +339,7 @@ pages = {3--56}
 
 
 @book{DK2012,
-author = {Durbin, J. and Koopman, S. J.},
+author = {Durbin, James and Koopman, Siem Jan},
 title = {Time Series Analysis by State Space Methods},
 edition = {2nd},
 year = {2012},
@@ -319,11 +382,10 @@ publisher = {Oxford University Press}
 
 @techreport{vihola-helske-franks,
 author = "Matti Vihola and Jouni Helske and Jordan Franks",
-title = "Importance sampling type estimators based on approximate
-marginal {M}arkov chain {M}onte {C}arlo",
+title = "Importance sampling type estimators based on approximate marginal {MCMC}",
 type = "Preprint",
-number = "arXiv:1609.02541v3",
-year = 2017
+number = "arXiv:1609.02541v6",
+year = 2020
 }
 
 @Article{Vihola2012,
@@ -354,4 +416,54 @@ url="http://dx.doi.org/10.1007/s11222-011-9269-5"
 }
 
 
+@article{pitt-shephard,
+title={Filtering via simulation: {A}uxiliary particle filters},
+author={Pitt, Michael K and Shephard, Neil},
+journal=j-asa,
+volume={94},
+number={446},
+pages={590--599},
+year={1999}
+}
 
+
+@article{whiteley-lee,
+title={Twisted particle filters},
+author={Whiteley, Nick and Lee, Anthony},
+journal=annstat,
+volume={42},
+number={1},
+pages={115--141},
+year={2014}
+}
+
+
+@inproceedings{merwe-doucet-freitas-wan,
+ author = {Van Der Merwe, Rudolph and Doucet, Arnaud and De Freitas, Nando and Wan, Eric},
+ title = {The Unscented Particle Filter},
+ booktitle = {Proceedings of the 13th International Conference on Neural Information Processing Systems},
+ series = {NIPS'00},
+ year = {2000},
+ location = {Denver, CO},
+ pages = {563--569},
+ numpages = {7},
+ url = {http://dl.acm.org/citation.cfm?id=3008751.3008833},
+ acmid = {3008833},
+ publisher = {MIT Press},
+ address = {Cambridge, MA, USA},
+} 
+@book{jazwinski,
+  author = {Andrew Jazwinski},
+  title = {Stochastic Processes and Filtering Theory},
+  publisher = {Academic Press},
+  year = {1970},
+}
+
+@book{durbin-koopman2001,
+author = {Durbin, James and Koopman, Siem Jan},
+title = {Time Series Analysis by State Space Methods},
+edition = {1nd},
+year = {2012},
+address = {New York},
+publisher = {Oxford University Press}
+}

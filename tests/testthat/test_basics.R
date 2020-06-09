@@ -6,7 +6,7 @@ test_that("results for gaussian model are comparable to KFAS",{
   model_KFAS$P1inf[] <- 0
   diag(model_KFAS$P1) <- 1e2
   
-  model_bssm <- bsm(1:10, P1 = diag(1e2,2), sd_slope = 0,
+  model_bssm <- bsm_lg(1:10, P1 = diag(1e2,2), sd_slope = 0,
     sd_level = 0.01, sd_y = sqrt(2))
   
   expect_equal(logLik(model_KFAS,convtol = 1e-12), logLik(model_bssm,0))
@@ -47,14 +47,14 @@ test_that("results for multivariate gaussian model are comparable to KFAS",{
     "sea_trig*5.rear", "sea_trig6.rear", "custom1", "custom2"), NULL, 
     NULL))
   
-  bssm_model <- as_gssm(kfas_model)
+  bssm_model <- as_bssm(kfas_model)
   expect_equivalent(logLik(kfas_model),logLik(bssm_model))
   expect_equivalent(KFS(kfas_model)$alphahat, smoother(bssm_model)$alphahat)
   
 })
 
 test_that("different smoothers give identical results",{
-  model_bssm <- bsm(log10(AirPassengers), P1 = diag(1e2,13), sd_slope = 0,
+  model_bssm <- bsm_lg(log10(AirPassengers), P1 = diag(1e2,13), sd_slope = 0,
     sd_y = uniform(0.005, 0, 10), sd_level = uniform(0.01, 0, 10), 
     sd_seasonal = uniform(0.005, 0, 1))
   
@@ -72,7 +72,7 @@ test_that("results for poisson model are comparable to KFAS",{
   model_KFAS$P1inf[] <- 0
   diag(model_KFAS$P1) <- 1e2
   
-  model_bssm <- ng_bsm(model_KFAS$y, P1 = diag(1e2,2), sd_slope = 0,
+  model_bssm <- bsm_ng(model_KFAS$y, P1 = diag(1e2,2), sd_slope = 0,
     sd_level = 0.01, u = 2:11, distribution = "poisson")
   
   expect_equal(logLik(model_KFAS), logLik(model_bssm, 0))
@@ -94,7 +94,7 @@ test_that("results for binomial model are comparable to KFAS", {
   model_KFAS$P1inf[] <- 0
   diag(model_KFAS$P1) <- 1e2
   
-  model_bssm <- ng_bsm(model_KFAS$y, P1 = diag(1e2,2), sd_slope = 0,
+  model_bssm <- bsm_ng(model_KFAS$y, P1 = diag(1e2,2), sd_slope = 0,
     sd_level = 0.01, u = 2:11, distribution = "binomial")
   
   expect_equal(logLik(model_KFAS), logLik(model_bssm, 0))

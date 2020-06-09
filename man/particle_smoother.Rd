@@ -2,47 +2,61 @@
 % Please edit documentation in R/particle_smoother.R
 \name{particle_smoother}
 \alias{particle_smoother}
-\alias{particle_smoother.gssm}
-\alias{particle_smoother.ngssm}
-\alias{particle_smoother.nlg_ssm}
-\alias{particle_smoother.sde_ssm}
+\alias{particle_smoother.nongaussian}
+\alias{particle_smoother.ssm_nlg}
+\alias{particle_smoother.ssm_sde}
 \title{Particle Smoothing}
 \usage{
-particle_smoother(object, nsim, ...)
+particle_smoother(model, nsim, ...)
 
-\method{particle_smoother}{gssm}(object, nsim,
-  seed = sample(.Machine$integer.max, size = 1), ...)
+\method{particle_smoother}{nongaussian}(
+  model,
+  nsim,
+  method = "psi",
+  seed = sample(.Machine$integer.max, size = 1),
+  max_iter = 100,
+  conv_tol = 1e-08,
+  ...
+)
 
-\method{particle_smoother}{ngssm}(object, nsim, filter_type = "bsf",
-  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
-  conv_tol = 1e-08, ...)
+\method{particle_smoother}{ssm_nlg}(
+  model,
+  nsim,
+  method = "psi",
+  seed = sample(.Machine$integer.max, size = 1),
+  max_iter = 100,
+  conv_tol = 1e-08,
+  iekf_iter = 0,
+  ...
+)
 
-\method{particle_smoother}{nlg_ssm}(object, nsim, filter_type = "psi",
-  seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
-  conv_tol = 1e-08, iekf_iter = 0, ...)
-
-\method{particle_smoother}{sde_ssm}(object, nsim, L,
-  seed = sample(.Machine$integer.max, size = 1), ...)
+\method{particle_smoother}{ssm_sde}(
+  model,
+  nsim,
+  L,
+  seed = sample(.Machine$integer.max, size = 1),
+  ...
+)
 }
 \arguments{
-\item{object}{Model.}
+\item{model}{Model.}
 
 \item{nsim}{Number of samples.}
 
 \item{...}{Ignored.}
 
-\item{seed}{Seed for RNG.}
-
-\item{filter_type}{Choice of particle filter algorithm. For Gaussian models, 
-only option is \code{"bsf"} (bootstrap particle filter). 
-In addition, for non-Gaussian or 
-non-linear models, \code{"psi"} uses psi-particle filter, and 
+\item{method}{Choice of particle filter algorithm. 
+For Gaussian and non-Gaussian models with linear dynamics,
+options are \code{"bsf"} (bootstrap particle filter) 
+and \code{"psi"} (\eqn{\psi}{psi}-APF, the default), and 
 for non-linear models options \code{"ekf"} (extended Kalman particle filter) 
 is also available.}
 
-\item{max_iter}{Maximum number of iterations used in Gaussian approximation. Used psi-PF.}
+\item{seed}{Seed for RNG.}
 
-\item{conv_tol}{Tolerance parameter used in Gaussian approximation. Used psi-PF.}
+\item{max_iter}{Maximum number of iterations used in Gaussian approximation. Used \eqn{\psi}{psi}-APF.}
+
+\item{conv_tol}{Tolerance parameter used in Gaussian approximation. Used \eqn{\psi}{psi}-APF.}
 
 \item{iekf_iter}{If zero (default), first approximation for non-linear 
 Gaussian models is obtained from extended Kalman filter. If 

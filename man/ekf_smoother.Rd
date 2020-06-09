@@ -4,10 +4,10 @@
 \alias{ekf_smoother}
 \title{Extended Kalman Smoothing}
 \usage{
-ekf_smoother(object, iekf_iter = 0)
+ekf_smoother(model, iekf_iter = 0)
 }
 \arguments{
-\item{object}{Model object}
+\item{model}{Model model}
 
 \item{iekf_iter}{If \code{iekf_iter > 0}, iterated extended Kalman filter is 
 used with \code{iekf_iter} iterations.}
@@ -19,7 +19,6 @@ smoothed state estimates \code{alphahat}, and the corresponding variances \code{
 }
 \description{
 Function \code{ekf_smoother} runs the (iterated) extended Kalman smoother for 
-the given non-linear Gaussian model of class \code{nlg_ssm}, 
-and returns the filtered estimates and one-step-ahead predictions of the 
-states \eqn{\alpha_t} given the data up to time \eqn{t}.
+the given non-linear Gaussian model of class \code{ssm_nlg}, 
+and returns the smoothed estimates of the states and the corresponding variances.
 }

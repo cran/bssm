@@ -6,169 +6,62 @@
 #' 
 #' For non-Gaussian models, the smoothing is based on the approximate Gaussian model.
 #'
-#' @param object Model object.
+#' @param model Model model.
 #' @param ... Ignored.
 #' @return Matrix containing the smoothed estimates of states, or a list
 #' with the smoothed states and the variances.
 #' @export
 #' @rdname smoother
-fast_smoother <- function(object, ...) {
-  UseMethod("fast_smoother", object)
+fast_smoother <- function(model, ...) {
+  UseMethod("fast_smoother", model)
 }
-#' @method fast_smoother gssm
+#' @method fast_smoother gaussian
 #' @export
-fast_smoother.gssm <- function(object, ...) {
+fast_smoother.gaussian <- function(model, ...) {
   
-  out <- gaussian_fast_smoother(object, model_type = 1L)
-  colnames(out) <- names(object$a1)
-  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
-    frequency = frequency(object$y))
+  out <- gaussian_fast_smoother(model, model_type(model))
+  colnames(out) <- names(model$a1)
+  ts(out[-nrow(out), , drop = FALSE], start = start(model$y), 
+    frequency = frequency(model$y))
 }
-#' @method fast_smoother bsm
+
+#' @method fast_smoother nongaussian
 #' @export
-fast_smoother.bsm <- function(object, ...) {
-  
-  out <- gaussian_fast_smoother(object, model_type = 2L)
-  colnames(out) <- names(object$a1)
-  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
-    frequency = frequency(object$y))
-}
-#' @method fast_smoother ar1
-#' @export
-fast_smoother.ar1 <- function(object, ...) {
-  
-  out <- gaussian_fast_smoother(object, model_type = 3L)
-  colnames(out) <- names(object$a1)
-  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
-    frequency = frequency(object$y))
-}
-#' @method fast_smoother mv_gssm
-#' @export
-fast_smoother.mv_gssm <- function(object, ...) {
-  
-  out <- gaussian_fast_smoother(object, model_type = -1L)
-  colnames(out) <- names(object$a1)
-  ts(out[-nrow(out), , drop = FALSE], start = start(object$y), 
-    frequency = frequency(object$y))
-}
-#' @method fast_smoother ngssm
-#' @export
-fast_smoother.ngssm <- function(object, ...) {
-  fast_smoother(gaussian_approx(object))
-}
-#' @method fast_smoother ng_bsm
-#' @export
-fast_smoother.ng_bsm <- function(object, ...) {
-  fast_smoother(gaussian_approx(object))
-}
-#' @method fast_smoother svm
-#' @export
-fast_smoother.svm <- function(object, ...) {
-  fast_smoother(gaussian_approx(object))
-}
-#' @method fast_smoother ng_ar1
-#' @export
-fast_smoother.ng_ar1 <- function(object, ...) {
-  fast_smoother(gaussian_approx(object))
+fast_smoother.nongaussian <- function(model, ...) {
+  fast_smoother(gaussian_approx(model))
 }
 #' @export
 #' @rdname smoother
-smoother <- function(object, ...) {
-  UseMethod("smoother", object)
+smoother <- function(model, ...) {
+  UseMethod("smoother", model)
 }
-#' @method smoother gssm
+#' @method smoother gaussian
 #' @export
-smoother.gssm <- function(object, ...) {
+smoother.gaussian <- function(model, ...) {
   
-  out <-  gaussian_smoother(object, model_type = 1L)
-  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
+  out <-  gaussian_smoother(model, model_type(model))
+  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(model$a1)
   
   out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
   out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
+    start = start(model$y), frequency = frequency(model$y))
   out
-}
-#' @method smoother mv_gssm
-#' @export
-smoother.mv_gssm <- function(object, ...) {
-  
-  out <-  gaussian_smoother(object, model_type = -1L)
-  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
-  
-  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
-  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
-  out
-}
-#' @method smoother bsm
-#' @export
-smoother.bsm <- function(object, ...) {
-  
-  out <- gaussian_smoother(object, model_type = 2L)
-  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
-  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
-  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
-  out
-}
-#' @method smoother ar1
-#' @export
-smoother.ar1 <- function(object, ...) {
-  
-  out <- gaussian_smoother(object, model_type = 3L)
-  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- names(object$a1)
-  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
-  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
-  out
-}
-#' @method smoother lgg_ssm
-#' @export
-smoother.lgg_ssm <- function(object, ...) {
-  
-  out <- general_gaussian_smoother(t(object$y), object$Z, object$H, object$T, 
-    object$R, object$a1, object$P1, 
-    object$theta, object$obs_intercept, object$state_intercept,
-    object$log_prior_pdf, object$known_params, 
-    object$known_tv_params, as.integer(object$time_varying), 
-    object$n_states, object$n_etas)
-  colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- object$state_names
-  out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
-  out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
-  out
-}
-#' @method smoother ngssm
-#' @export
-smoother.ngssm <- function(object, ...) {
-  smoother(gaussian_approx(object))
 }
 
-#' @method smoother ng_bsm
+#' @method smoother nongaussian
 #' @export
-smoother.ng_bsm <- function(object, ...) {
-  smoother(gaussian_approx(object))
+smoother.nongaussian <- function(model, ...) {
+  smoother(gaussian_approx(model))
 }
 
-#' @method smoother svm
-#' @export
-smoother.svm <- function(object, ...) {
-  smoother(gaussian_approx(object))
-}
 
-#' @method smoother ng_ar1
-#' @export
-smoother.ng_ar1 <- function(object, ...) {
-  smoother(gaussian_approx(object))
-}
 #' Extended Kalman Smoothing
 #'
 #' Function \code{ekf_smoother} runs the (iterated) extended Kalman smoother for 
-#' the given non-linear Gaussian model of class \code{nlg_ssm}, 
-#' and returns the filtered estimates and one-step-ahead predictions of the 
-#' states \eqn{\alpha_t} given the data up to time \eqn{t}.
+#' the given non-linear Gaussian model of class \code{ssm_nlg}, 
+#' and returns the smoothed estimates of the states and the corresponding variances.
 #'
-#' @param object Model object
+#' @param model Model model
 #' @param iekf_iter If \code{iekf_iter > 0}, iterated extended Kalman filter is 
 #' used with \code{iekf_iter} iterations.
 #' @return List containing the log-likelihood,
@@ -177,27 +70,34 @@ smoother.ng_ar1 <- function(object, ...) {
 #' @export
 #' @rdname ekf_smoother
 #' @export
-ekf_smoother <- function(object, iekf_iter = 0) {
+ekf_smoother <- function(model, iekf_iter = 0) {
   
-  out <- ekf_smoother_nlg(t(object$y), object$Z, object$H, object$T, 
-    object$R, object$Z_gn, object$T_gn, object$a1, object$P1, 
-    object$theta, object$log_prior_pdf, object$known_params, 
-    object$known_tv_params, object$n_states, object$n_etas, 
-    as.integer(object$time_varying), iekf_iter)
+  out <- ekf_smoother_nlg(t(model$y), model$Z, model$H, model$T, 
+    model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 
+    model$theta, model$log_prior_pdf, model$known_params, 
+    model$known_tv_params, model$n_states, model$n_etas, 
+    as.integer(model$time_varying), iekf_iter, 
+    default_update_fn, default_prior_fn)
+  colnames(out$alphahat) <- colnames(out$Vt) <-
+    rownames(out$Vt) <- model$state_names
+  
   out$Vt <- out$Vt[, , -nrow(out$alphahat), drop = FALSE]
   out$alphahat <- ts(out$alphahat[-nrow(out$alphahat), , drop = FALSE], 
-    start = start(object$y), frequency = frequency(object$y))
+    start = start(model$y), frequency = frequency(model$y))
   out
 }
 
-ekf_fast_smoother <- function(object, iekf_iter = 0) {
+ekf_fast_smoother <- function(model, iekf_iter = 0) {
   
-  out <- ekf_fast_smoother_nlg(t(object$y), object$Z, object$H, object$T, 
-    object$R, object$Z_gn, object$T_gn, object$a1, object$P1, 
-    object$theta, object$log_prior_pdf, object$known_params, 
-    object$known_tv_params, object$n_states, object$n_etas, 
-    as.integer(object$time_varying), iekf_iter)
-  ts(out[-nrow(out$alphahat), , drop = FALSE], start = start(object$y), 
-    frequency = frequency(object$y))
+  out <- ekf_fast_smoother_nlg(t(model$y), model$Z, model$H, model$T, 
+    model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 
+    model$theta, model$log_prior_pdf, model$known_params, 
+    model$known_tv_params, model$n_states, model$n_etas, 
+    as.integer(model$time_varying), iekf_iter, 
+    default_update_fn, default_prior_fn)
+  colnames(out$alphahat) <- colnames(out$Vt) <-
+    rownames(out$Vt) <- model$state_names
+  ts(out[-nrow(out$alphahat), , drop = FALSE], start = start(model$y), 
+    frequency = frequency(model$y))
 }
 

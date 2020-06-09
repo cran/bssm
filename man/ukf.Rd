@@ -4,10 +4,10 @@
 \alias{ukf}
 \title{Unscented Kalman Filtering}
 \usage{
-ukf(object, alpha = 1, beta = 0, kappa = 2)
+ukf(model, alpha = 1, beta = 0, kappa = 2)
 }
 \arguments{
-\item{object}{Model object}
+\item{model}{Model model}
 
 \item{alpha, beta, kappa}{Tuning parameters for the UKF.}
 }
@@ -19,7 +19,7 @@ estimates \code{att} of states, and the corresponding variances \code{Pt} and
 }
 \description{
 Function \code{ukf} runs the unscented Kalman filter for the given 
-non-linear Gaussian model of class \code{nlg_ssm}, 
+non-linear Gaussian model of class \code{ssm_nlg}, 
 and returns the filtered estimates and one-step-ahead predictions of the 
 states \eqn{\alpha_t} given the data up to time \eqn{t}.
 }

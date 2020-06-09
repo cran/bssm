@@ -2,38 +2,28 @@
 % Please edit documentation in R/importance_sample.R
 \name{importance_sample}
 \alias{importance_sample}
-\alias{importance_sample.ngssm}
-\alias{importance_sample.ng_bsm}
-\alias{importance_sample.svm}
-\alias{importance_sample.ung_ar1}
+\alias{importance_sample.nongaussian}
 \title{Importance Sampling from non-Gaussian State Space Model}
 \usage{
-importance_sample(object, nsim, use_antithetic, max_iter, conv_tol, seed,
-  ...)
+importance_sample(model, nsim, use_antithetic, max_iter, conv_tol, seed, ...)
 
-\method{importance_sample}{ngssm}(object, nsim, use_antithetic = TRUE,
-  max_iter = 100, conv_tol = 1e-08,
-  seed = sample(.Machine$integer.max, size = 1), ...)
-
-\method{importance_sample}{ng_bsm}(object, nsim, use_antithetic = TRUE,
-  max_iter = 100, conv_tol = 1e-08,
-  seed = sample(.Machine$integer.max, size = 1), ...)
-
-\method{importance_sample}{svm}(object, nsim, use_antithetic = TRUE,
-  max_iter = 100, conv_tol = 1e-08,
-  seed = sample(.Machine$integer.max, size = 1), ...)
-
-\method{importance_sample}{ung_ar1}(object, nsim, use_antithetic = TRUE,
-  max_iter = 100, conv_tol = 1e-08,
-  seed = sample(.Machine$integer.max, size = 1), ...)
+\method{importance_sample}{nongaussian}(
+  model,
+  nsim,
+  use_antithetic = TRUE,
+  max_iter = 100,
+  conv_tol = 1e-08,
+  seed = sample(.Machine$integer.max, size = 1),
+  ...
+)
 }
 \arguments{
-\item{object}{of class \code{ng_bsm}, \code{svm} or \code{ngssm}.}
+\item{model}{of class \code{bsm_ng}, \code{ar1_ng} \code{svm}, \code{ssm_ung}, or \code{ssm_mng}.}
 
 \item{nsim}{Number of samples.}
 
 \item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic 
-variable for location in simulation smoothing.}
+variable for location in simulation smoothing. Ignored for \code{ssm_mng} models.}
 
 \item{max_iter}{Maximum number of iterations used for the approximation.}
 

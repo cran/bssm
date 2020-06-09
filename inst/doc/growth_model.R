@@ -1,71 +1,106 @@
-## ----setup, include=FALSE------------------------------------------------
+## ----setup, include=FALSE-----------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
-options(tinytex.verbose = TRUE)
+#options(tinytex.verbose = TRUE)
 
-## ----data----------------------------------------------------------------
+## ----data---------------------------------------------------------------------
 set.seed(1)
 
-#parameters
-K <- 100 # carrying capacity
-p0 <- 10 # population size at t = 0
-r <- .2 # growth rate
+p0 <- 50 # population size at t = 0
+K <- 500 # carrying capacity
+H <- 1 # standard deviation of obs noise
 
 #sample time
 dT <- .1
 
 #observation times
-t <- seq(0.1, 25, dT)
-
-# simulate true population size (=p) at the observation times
-p <- K * p0 * exp(r * t) / (K + p0 * (exp(r * t) - 1))
-
+t <- seq(0.1, 30, dT)
+n <- length(t)
+r <- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = 0.05))))
+p <- numeric(n)
+p[1] <- p0
+for(i in 2:n)
+  p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 # observations
-y <- ts(p + rnorm(length(t), 0, 5))
+y <- p + rnorm(n, 0, H)
 
-
-## ----pointers------------------------------------------------------------
-Rcpp::sourceCpp("nlg_ssm_template.cpp")
+## ----pointers-----------------------------------------------------------------
+Rcpp::sourceCpp("ssm_nlg_template.cpp")
 pntrs <- create_xptrs()
 
-## ----theta---------------------------------------------------------------
-initial_theta <- c(3, 0.5, 0.5)
+## ----theta--------------------------------------------------------------------
+initial_theta <- c(H = 1, R1 = 0.05, R2 = 1)
 
 # dT, K, a1 and the prior variances
-psi <- c(dT, 100, 0.3, 5, 4, 10)
+known_params <- c(dT = dT, K = K, a11 = -1, a12 = 50, P11 = 1, P12 = 100)
 
-## ----test----------------------------------------------------------------
-T_fn(0, c(100, 200), initial_theta, psi, matrix(1))
 
-## ----model---------------------------------------------------------------
+## ----test---------------------------------------------------------------------
+T_fn(0, c(100, 200), initial_theta, known_params, matrix(1))
+
+## ----model--------------------------------------------------------------------
 library("bssm")
-model <- nlg_ssm(y = y, a1=pntrs$a1, P1 = pntrs$P1, 
+model <- ssm_nlg(y = y, a1=pntrs$a1, P1 = pntrs$P1, 
   Z = pntrs$Z_fn, H = pntrs$H_fn, T = pntrs$T_fn, R = pntrs$R_fn, 
   Z_gn = pntrs$Z_gn, T_gn = pntrs$T_gn,
   theta = initial_theta, log_prior_pdf = pntrs$log_prior_pdf,
-  known_params = psi, known_tv_params = matrix(1),
-  n_states = 2, n_etas = 2)
+  known_params = known_params, known_tv_params = matrix(1),
+  n_states = 2, n_etas = 2, state_names = c("logit_r", "p"))
 
-## ----ekf-----------------------------------------------------------------
+## ----ekf----------------------------------------------------------------------
 out_filter <- ekf(model)
 out_smoother <- ekf_smoother(model)
 ts.plot(cbind(y, out_filter$att[, 2], out_smoother$alphahat[, 2]), col = 1:3)
-ts.plot(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1]), col = 1:2)
+ts.plot(plogis(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1])), col = 1:2)
 
-## ----mcmc----------------------------------------------------------------
-out_mcmc_pm <- run_mcmc(model, n_iter = 5000, nsim_states = 10, method = "da", 
-  simulation_method = "psi")
-out_mcmc_ekf <- run_mcmc(model, n_iter = 5000, method = "ekf")
-summary_pm <- summary(out_mcmc_pm)
-summary_ekf <- summary(out_mcmc_ekf)
-ts.plot(cbind(summary_pm$states$Mean[, 1], summary_ekf$states$Mean[, 1]), col = 1:3)
-ts.plot(cbind(y, summary_pm$states$Mean[, 2], summary_ekf$states$Mean[, 2]), col = 1:3)
+## ----mcmc---------------------------------------------------------------------
+mcmc_res <- run_mcmc(model, iter = 2e4, burnin = 5000, nsim = 10, 
+  mcmc_type = "is2", sampling_method = "psi")
+mcmc_ekf_res <- run_mcmc(model, iter = 2e4, burnin = 5000, 
+  mcmc_type = "ekf")
+summary(mcmc_res, return_se = TRUE)
+summary(mcmc_ekf_res, return_se = TRUE)
 
-## ----pred----------------------------------------------------------------
-future_model <- model
-future_model$y <- ts(rep(NA, 100), start = end(model$y) + c(1, 0))
-out_pred_pm <- predict(out_mcmc_pm, future_model, type = "response", nsim = 50)
-out_pred_ekf <- predict(out_mcmc_ekf, future_model, type = "response", nsim = 0)
+## ----summaries----------------------------------------------------------------
+library("dplyr")
+library("Hmisc")
+d1 <- as.data.frame(mcmc_res, variable = "states")
+d2 <- as.data.frame(mcmc_ekf_res, variable = "states")
+d1$method <- "is2-psi"
+d2$method <- "approx ekf"
+
+r_summary <- rbind(d1, d2) %>% 
+  filter(variable == "logit_r") %>%
+  group_by(time, method) %>%
+  summarise(
+    mean = wtd.mean(plogis(value), weight, normwt = TRUE), 
+    lwr = wtd.quantile(plogis(value), weight, 0.025, normwt = TRUE), 
+    upr = wtd.quantile(plogis(value), weight, 0.975, normwt = TRUE))
+
+p_summary <- rbind(d1, d2) %>% 
+  filter(variable == "p") %>%
+  group_by(time, method) %>%
+  summarise(  
+    mean = wtd.mean(value, weight, normwt = TRUE), 
+    lwr = wtd.quantile(value, weight, 0.025, normwt = TRUE), 
+    upr = wtd.quantile(value, weight, 0.975, normwt = TRUE))
+
+
+## ----figures------------------------------------------------------------------
 library("ggplot2")
-autoplot(out_pred_pm, y = model$y, plot_median = FALSE)
-autoplot(out_pred_ekf, y = model$y, plot_median = FALSE)
+ggplot(r_summary, aes(x = time, y = mean)) + 
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = method), 
+    colour = NA, alpha = 0.25) +
+  geom_line(aes(colour = method)) +
+  geom_line(data = data.frame(mean = r, time = seq_along(r))) +
+  theme_bw()
+
+p_summary$cut <- cut(p_summary$time, c(0, 100, 200, 301))
+ggplot(p_summary, aes(x = time, y = mean,)) + 
+  geom_point(data = data.frame(
+    mean = y, time = seq_along(y),
+    cut = cut(seq_along(y), c(0, 100, 200, 301))), alpha = 0.1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr, fill = method), 
+    colour = NA, alpha = 0.25) +
+  geom_line(aes(colour = method)) +
+  theme_bw() + facet_wrap(~ cut, scales = "free")
 
