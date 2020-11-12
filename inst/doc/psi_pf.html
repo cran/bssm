@@ -11,7 +11,7 @@
 
 <meta name="author" content="Jouni Helske" />
 
-<meta name="date" content="2020-06-08" />
+<meta name="date" content="2020-10-26" />
 
 <title>\psi-APF for non-linear Gaussian state space models</title>
 
@@ -365,22 +365,22 @@ summary {
 
 <h1 class="title toc-ignore"><span class="math inline">\(\psi\)</span>-APF for non-linear Gaussian state space models</h1>
 <h4 class="author">Jouni Helske</h4>
-<h4 class="date">8 June 2020</h4>
+<h4 class="date">26 October 2020</h4>
 
 </div>
 
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-<p><span class="citation">Vihola, Helske, and Franks (2020)</span> suggest an efficient particle filter <span class="math inline">\(\psi\)</span>-APF for likelihood estimation and state smoothing in case of state space models with linear-Gaussian state dynamics. The concept is similar to as in iterated auxiliary particle filter <span class="citation">(Guarniero, Johansen, and Lee)</span>, where the original model is “twisted” using so called <span class="math inline">\(\psi\)</span>-functions, which are found iteratively. Instead of iterative procedure for finding optimal <span class="math inline">\(\psi\)</span>-functions, the <span class="math inline">\(\psi\)</span>-APF uses conditional smoothing distribution of the states based on an approximate Gaussian model <span class="citation">(Durbin and Koopman 1997, <span class="citation">@shephard-pitt</span>)</span>. Compared to off-the-shelf solution based on a bootstrap filter (BSF) <span class="citation">(Gordon, Salmond, and Smith 1993)</span>, only a fraction of particles are needed for accurate evaluation of the marginal likelihood, which in turn increases the performance of particle Markov chain Monte Carlo (MCMC) computations (and the IS-type corrected MCMC introduced in <span class="citation">Vihola, Helske, and Franks (2020)</span>).</p>
-<p>Here we extend the <span class="math inline">\(\psi\)</span>-PF to handle Gaussian models, with non-linear observation or transition equations.</p>
+<p><span class="citation">Vihola, Helske, and Franks (2020)</span> suggest an efficient particle filter (sequential Monte Carlo, SMC) called <span class="math inline">\(\psi\)</span>-APF for marginal likelihood estimation and state smoothing in case of state space models with linear-Gaussian state dynamics and twice-differentiable observation densities. The concept is similar to as in iterated auxiliary particle filter <span class="citation">(Guarniero, Johansen, and Lee 2017)</span>, where the original model is “twisted” using so called <span class="math inline">\(\psi\)</span>-functions, which are found iteratively. Instead of iterative procedure for finding optimal <span class="math inline">\(\psi\)</span>-functions, the <span class="math inline">\(\psi\)</span>-APF uses conditional smoothing distribution of the latent states based on an approximate Gaussian model <span class="citation">(Durbin and Koopman 1997; Shephard and Pitt 1997)</span>. Compared to off-the-shelf solution based on a bootstrap filter (BSF) <span class="citation">(Gordon, Salmond, and Smith 1993)</span>, only a fraction of particles are needed for accurate evaluation of the marginal likelihood, which in turn increases the performance of particle Markov chain Monte Carlo (MCMC) computations and the importance sampling (IS) type weighted MCMC introduced in <span class="citation">Vihola, Helske, and Franks (2020)</span> (see also <span class="citation">Lindsten, Helske, and Vihola (2018)</span> for combining deterministic approximations and SMC for probabilistic graphical models).</p>
+<p>Here we study the <span class="math inline">\(\psi\)</span>-APF in case of Gaussian models with non-linear observation or transition equations.</p>
 </div>
 <div id="psi-apf" class="section level2">
 <h2><span class="math inline">\(\psi\)</span>-APF</h2>
 <p>Let us first consider general state space model of form <span class="math display">\[
 y_t \sim g(y_t | \alpha_t)\\
 \alpha_{t+1} \sim \mu(\alpha_{t+1} | \alpha_t),
-\]</span> and assume that we have an access to approximating densities <span class="math inline">\(\tilde g(y_t | \alpha_t)\)</span>, and <span class="math inline">\(\tilde \mu(\alpha_{t+1} | \alpha_t)\)</span>.</p>
+\]</span> and as in <span class="citation">Vihola, Helske, and Franks (2020)</span> we assume that we have an access to approximating densities <span class="math inline">\(\tilde g(y_t | \alpha_t)\)</span>, and <span class="math inline">\(\tilde \mu(\alpha_{t+1} | \alpha_t)\)</span>.</p>
 <p>We define <span class="math display">\[
 \psi_t(\alpha_t) = \tilde g(y_t | \alpha_t) \textrm{E} \left[ \left. \prod_{p = t + 1}^T \tilde g(y_p | \alpha_p)  \right\vert \alpha_t \right] = \tilde g(y_t | \alpha_t) \int \tilde p(y_{t+1:T}, \alpha_{t+1:T} | \alpha_t) \textrm{d} \alpha_{t+1:T} = \tilde p(y_{t:T} | x_t),
 \]</span></p>
@@ -394,21 +394,21 @@ g_1^{\Psi}(y_1 | \alpha_1)  &amp;= \frac{\mu_1(\alpha_1)}{\tilde \mu_1(\alpha_1)
 g_t^{\Psi}(y_t | \alpha_t)  &amp;= \frac{\mu_t(\alpha_t | \alpha_{t-1})}{\tilde \mu_t(\alpha_t | \alpha_{t-1})}\frac{g(y_t | \alpha_t)}{\tilde g(y_t | \alpha_t)}, &amp;t=2\ldots,T,
 \end{aligned}
 \]</span></p>
-<p>Running particle filter with potentials <span class="math inline">\(g^{\psi}_t\)</span> and proposals <span class="math inline">\(\mu^{\psi}_t\)</span> does not produce the correct filtering distribution, but the resulting smoothing distribution and marginal likelihood estimate <span class="math inline">\(p(y_{1:T})\)</span> coincide with the corresponding estimates of the original model.</p>
+<p>Running particle filter with potentials <span class="math inline">\(g^{\psi}_t\)</span> and proposals <span class="math inline">\(\mu^{\psi}_t\)</span> does not produce the correct filtering distribution (with respect to the original model), but the resulting smoothing distribution and marginal likelihood estimate <span class="math inline">\(p(y_{1:T})\)</span> coincide with the corresponding estimates of the original model.</p>
 <p>In a case where the transition densities <span class="math inline">\(\mu_t\)</span> are Gaussian and the observation densities belong to exponential family, we can obtain the twisted densities via Gaussian approximation as in <span class="citation">Vihola, Helske, and Franks (2020)</span>. These twisted transition densities correspond to the marginal conditional smoothing distribution <span class="math inline">\(\tilde p(\alpha_t | \alpha_{t-1}, y_{t:T})\)</span> which can be computed straightforwardly from the output of Kalman filter and smoother, as the conditional distribution is Gaussian with mean</p>
 <p><span class="math display">\[
 \hat \alpha_t + \textrm{Cov}(\alpha_{t},\alpha_{t-1} | y_{1:T}) \textrm{Var}(\alpha_{t-1}| y_{1:T})^{-1} (\alpha_{t-1} - \hat \alpha_{t-1})
 \]</span> and variance <span class="math display">\[
 \textrm{Var}(\alpha_t | y_{1:T}) - \textrm{Cov}(\alpha_t,\alpha_{t-1} | y_{1:T}) \textrm{Var}(\alpha_{t-1} | y_{1:T})^{-1}\textrm{Cov}(\alpha_{t-1},\alpha_t | y_{1:T}).
-\]</span> The mean and variance terms are a standard output of smoothing algorithm, whereas the covariance term can be computed at the same time from the auxiliary variables used in smoothing (see, e.g., <span class="citation">Durbin and Koopman (2012a)</span>).</p>
+\]</span> The mean and variance terms are a standard output of smoothing algorithm, whereas the covariance term can be computed at the same time from the auxiliary variables used in smoothing (see, e.g., <span class="citation">Durbin and Koopman (2012a)</span>). Note that in this case the potentials <span class="math inline">\(g_t^{\Psi}(y_t | \alpha_t)\)</span> simplify to form <span class="math inline">\(\frac{g(y_t | \alpha_t)}{\tilde g(y_t | \alpha_t)}\)</span> and similaly for the first time point which contains additional term corresponding to the marginal likelihood of the approximating Gaussian model.</p>
 </div>
 <div id="psi-apf-for-non-linear-gaussian-models" class="section level2">
 <h2><span class="math inline">\(\psi\)</span>-APF for non-linear Gaussian models</h2>
 <p>We now focus on a non-linear case where the model is of form <span class="math display">\[
 p(y_t | \alpha_t) = Z_t(\alpha_t) + H_t\epsilon_t,\\
 p(\alpha_{t+1} | \alpha_t) = T_t(\alpha_t) + R_t \eta_t.
-\]</span> Compared to <span class="citation">Vihola, Helske, and Franks (2020)</span>, the transition density <span class="math inline">\(p(\alpha_{t+1} | \alpha_t)\)</span> is now assumed to be non-linear function of states, and we assume (possibly non-linear) Gaussian density for the observations. Now the Gaussian approximation approach of <span class="citation">Durbin and Koopman (1997)</span> and <span class="citation">Shephard and Pitt (1997)</span> is not applicable as such. Natural modification to the algorithm is to use extended Kalman filter (EKF) and for obtaining linear-Gaussian model.</p>
-<p>In importance sampling framework, the usage of first order Taylor expansion for obtaining approximate Gaussian model is briefly discussed in <span class="citation">Durbin and Koopman (2012b)</span>. The idea is simple: First we run the EKF and the corresponding extended Kalman smoothing algorithm using the the original model. Then, using the obtained smoothed estimates <span class="math inline">\(\tilde \alpha\)</span> as a new linearization point, we construct the corresponding mean-adjusted linear-Gaussian model:</p>
+\]</span> Compared to <span class="citation">Vihola, Helske, and Franks (2020)</span>, the transition density <span class="math inline">\(p(\alpha_{t+1} | \alpha_t)\)</span> is now assumed to be non-linear function of states, and we assume (possibly non-linear) Gaussian density for the observations, and the Gaussian approximation approach of <span class="citation">Durbin and Koopman (1997)</span> and <span class="citation">Shephard and Pitt (1997)</span> is not applicable as such. Natural modification to the algorithm is to use extended Kalman filter (EKF) for obtaining linear-Gaussian model.</p>
+<p>In importance sampling framework, the usage of first order Taylor expansion for obtaining approximate Gaussian model is briefly discussed in <span class="citation">Durbin and Koopman (2012b)</span>. Here we first we run the EKF and the corresponding extended Kalman smoothing algorithm using the the original model. Then, using the obtained smoothed estimates <span class="math inline">\(\tilde \alpha\)</span> as a new linearization point, we construct the corresponding mean-adjusted linear-Gaussian model:</p>
 <p><span class="math display">\[
 y_t = d_t + \dot{Z_t} \alpha_t + H_t \epsilon_t,\\
 \alpha_{t+1} = c_t + \dot{T_t} \alpha_t + R_t \eta_t,\\
@@ -418,7 +418,377 @@ d_t = Z_t(\tilde \alpha_t) - \dot{Z_t} \tilde \alpha_t,\\
 \dot{T_t} = \left. \frac{\partial T_t(x)}{\partial x}\right|_{x=\tilde\alpha_t},\\
 c_t = T_t(\tilde \alpha_t) - \dot{T_t} \tilde \alpha_t.
 \]</span></p>
-<p>We then run Kalman filter and smoother (KFS) again for this model, linearize, and continue until convergence. <span class="citation">Durbin and Koopman (2012b)</span> show that the smoothed state estimate <span class="math inline">\(\hat \alpha\)</span> of the final approximating Gaussian model coincide with the conditional mode of the original model. However, in practice it is possible that the algorithm does not converge at due to severe non-linearities of the model, or due to poor initial values. In case the EKF at first step tends to diverge, using so called iterated extended Kalman filter <span class="citation">(Jazwinski 1970)</span> can sometimes be useful. Also, line-search methods which adjust the step sizes of the optimization algorithm can can also be beneficial.</p>
+<p>We then run Kalman filter and smoother (KFS) again for this model, linearize, and continue until convergence. <span class="citation">Durbin and Koopman (2012b)</span> show that the smoothed state estimate <span class="math inline">\(\hat \alpha\)</span> of the final approximating Gaussian model coincide with the conditional mode of the original model.</p>
+<p>Compared to the <span class="math inline">\(\psi\)</span>-APF with linear-Gaussian states and observations from exponential family, there are cases of non-linear models where it is likely that <span class="math inline">\(\psi\)</span>-APF does not perform well. Due to the severe non-linearities of the model, it is possible that the linearization algorithm does not converge. In case the EKF at first step tends to diverge, using so called iterated extended Kalman filter <span class="citation">(Jazwinski 1970)</span> can sometimes be useful. Another issue is multimodal distributions, where it is likely that standard BSF outperforms <span class="math inline">\(\psi\)</span>-APF. Nevertheless, as illustrated in the next Section, when applicable $-APF can lead to significant computational gains compared to several other particle filtering algorithms.</p>
+</div>
+<div id="illustrations" class="section level2">
+<h2>Illustrations</h2>
+<p>We now compare <span class="math inline">\(\psi\)</span>-PF with standard bootstrap filter (BSF) <span class="citation">(Gordon, Salmond, and Smith 1993)</span>, and extended Kalman particle filter algorithm <span class="citation">(Van Der Merwe et al. 2000)</span>. Note that <span class="citation">Van Der Merwe et al. (2000)</span> recommend using particle filter based on unscented Kalman filter (UKF) instead of EKPF as it generally produces more accurate results, but as the UKF algorithm depends of several tuning parameters, its use as black-box-type algorithm is more problematic.</p>
+<p>We are interested in the accuracy of the log-likelihood estimate and the relative computational performance of the different particle filtering algorithms with varying number of particles <span class="math inline">\(N\)</span>. In addition, we compare the accuracy of the smoothed state estimates at the first and last time point, based on the filter-smoother algorithm <span class="citation">(Kitagawa 1996)</span>. As a efficiency measure, we use inverse relative efficiency (IRE), defined as the mean squared error (MSE) multiplied by the average computation time, where the reference value for MSE is based on a bootstrap filter with 100,000 particles.</p>
+<div id="non-linear-transition-equation" class="section level3">
+<h3>Non-linear transition equation</h3>
+<p>Our first model is logistic growth model of form <span class="math display">\[
+y_t = p_t + \epsilon_t,\\
+p_{t+1} = K p_t \frac{\exp(r_t dt)}{K + p_t (\exp(r_tdt ) - 1)} + \xi_t,\\
+r_t = \frac{\exp{r&#39;_t}}{1 + \exp{r&#39;_t}},\\
+r&#39;_{t+1} = r&#39;_t + \eta_t,
+\]</span> with constant carrying capacity <span class="math inline">\(K = 500\)</span>, initial population size <span class="math inline">\(p_1 = 50\)</span>, initial growth rate on logit scale <span class="math inline">\(r&#39;_1 = -1.5\)</span>, <span class="math inline">\(dt = 0.1\)</span>, <span class="math inline">\(\xi \sim N(0,1)\)</span>, <span class="math inline">\(\eta \sim N(0,0.05^2)\)</span>, and <span class="math inline">\(\epsilon \sim N(0, 1)\)</span>.</p>
+<p>First, we simulated one realization of length 300 from the logistic growth model. All the model parameters were assumed to be known, expect that the prior variances for the states <span class="math inline">\(p_1\)</span> and <span class="math inline">\(r&#39;_1\)</span> was set to <span class="math inline">\(1\)</span> and <span class="math inline">\(100\)</span>. We then performed particle smoothing 1000 times with <span class="math inline">\(N=100\)</span>, and <span class="math inline">\(N=1000\)</span> particles, using BSF, EKPF, and <span class="math inline">\(\psi\)</span>-APF algorithms.</p>
+<p>Table 1 shows the means, standard deviations, and IREs of the log-likelihood estimates using different methods. We see although BSF produces less accurate results than EKPF, the computational load of EKFP negates the increased accuracy in terms of IRE. However, <span class="math inline">\(\psi\)</span>-APF provides significantly smaller standard errors with IREs several orders of magnitude smaller than ones obtained from other methods.</p>
+<table>
+<caption>Results for the log-likelihood estimates of the growth model.</caption>
+<thead>
+<tr class="header">
+<th align="left">method</th>
+<th align="right">N</th>
+<th align="right">mean</th>
+<th align="right">SD</th>
+<th align="right">IRE</th>
+<th align="right">time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">10</td>
+<td align="right">-84893.8620</td>
+<td align="right">241703.9111</td>
+<td align="right">2.450686e+08</td>
+<td align="right">0.0037</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">10</td>
+<td align="right">-629.5561</td>
+<td align="right">29.4238</td>
+<td align="right">2.311380e+01</td>
+<td align="right">0.0164</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">10</td>
+<td align="right">-606.2218</td>
+<td align="right">0.1201</td>
+<td align="right">3.000000e-04</td>
+<td align="right">0.0185</td>
+</tr>
+<tr class="even">
+<td align="left">BSF</td>
+<td align="right">100</td>
+<td align="right">-611.0850</td>
+<td align="right">3.7534</td>
+<td align="right">1.147900e+00</td>
+<td align="right">0.0300</td>
+</tr>
+<tr class="odd">
+<td align="left">EKPF</td>
+<td align="right">100</td>
+<td align="right">-607.7500</td>
+<td align="right">1.8476</td>
+<td align="right">8.894000e-01</td>
+<td align="right">0.1499</td>
+</tr>
+<tr class="even">
+<td align="left">PSI</td>
+<td align="right">100</td>
+<td align="right">-606.2149</td>
+<td align="right">0.0425</td>
+<td align="right">5.000000e-04</td>
+<td align="right">0.1044</td>
+</tr>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">1000</td>
+<td align="right">-606.6395</td>
+<td align="right">0.9176</td>
+<td align="right">3.087000e-01</td>
+<td align="right">0.2888</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">1000</td>
+<td align="right">-606.3727</td>
+<td align="right">0.5524</td>
+<td align="right">5.204000e-01</td>
+<td align="right">1.4905</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">1000</td>
+<td align="right">-606.2138</td>
+<td align="right">0.0157</td>
+<td align="right">2.600000e-03</td>
+<td align="right">0.9049</td>
+</tr>
+</tbody>
+</table>
+<p>Similar table for the smoothed estimate of <span class="math inline">\(p_1\)</span> show again the superiority of the <span class="math inline">\(\psi\)</span>-PF, with no clear differences between BSF and EKPF.</p>
+<table>
+<caption>Results for the p_1 estimates of the growth model.</caption>
+<thead>
+<tr class="header">
+<th align="left">method</th>
+<th align="right">N</th>
+<th align="right">mean</th>
+<th align="right">SD</th>
+<th align="right">IRE</th>
+<th align="right">time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">10</td>
+<td align="right">-1.5025</td>
+<td align="right">0.8657</td>
+<td align="right">0.0031</td>
+<td align="right">0.0037</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">10</td>
+<td align="right">-1.2808</td>
+<td align="right">0.3947</td>
+<td align="right">0.0026</td>
+<td align="right">0.0164</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">10</td>
+<td align="right">-1.2410</td>
+<td align="right">0.1371</td>
+<td align="right">0.0003</td>
+<td align="right">0.0185</td>
+</tr>
+<tr class="even">
+<td align="left">BSF</td>
+<td align="right">100</td>
+<td align="right">-1.2495</td>
+<td align="right">0.2691</td>
+<td align="right">0.0022</td>
+<td align="right">0.0300</td>
+</tr>
+<tr class="odd">
+<td align="left">EKPF</td>
+<td align="right">100</td>
+<td align="right">-1.2474</td>
+<td align="right">0.2231</td>
+<td align="right">0.0075</td>
+<td align="right">0.1499</td>
+</tr>
+<tr class="even">
+<td align="left">PSI</td>
+<td align="right">100</td>
+<td align="right">-1.2437</td>
+<td align="right">0.0609</td>
+<td align="right">0.0004</td>
+<td align="right">0.1044</td>
+</tr>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">1000</td>
+<td align="right">-1.2459</td>
+<td align="right">0.1691</td>
+<td align="right">0.0083</td>
+<td align="right">0.2888</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">1000</td>
+<td align="right">-1.2462</td>
+<td align="right">0.1176</td>
+<td align="right">0.0209</td>
+<td align="right">1.4905</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">1000</td>
+<td align="right">-1.2449</td>
+<td align="right">0.0250</td>
+<td align="right">0.0007</td>
+<td align="right">0.9049</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="non-linear-observation-equation" class="section level3">
+<h3>Non-linear observation equation</h3>
+<p>As a second illustration, we consider a model <span class="math display">\[
+y_t = \exp(\alpha_t) + \epsilon_t,\\
+\alpha_{t+1} = 0.95\alpha_t + \eta_t,
+\]</span> where <span class="math inline">\(\eta \sim N(0, \sigma^2)\)</span> and <span class="math inline">\(\epsilon_t \sim N(0, 1)\)</span>, with stationary initial distribution <span class="math inline">\(\alpha_1 \sim N(0, \sigma^2 / (1-0.95^2))\)</span>. Now state dynamics are linear-Gaussian, but the observation density is nonlinear with respect to state.</p>
+<p>We simulated data of length <span class="math inline">\(n=100\)</span> using <span class="math inline">\(\sigma^2 = 0.1\)</span> and <span class="math inline">\(\sigma^2=1\)</span>. In case of <span class="math inline">\(\sigma^2=1\)</span>, EKPF generated spurious results and therefore the results are only shown for BSF and <span class="math inline">\(\psi\)</span>-PF.</p>
+<p>Table 4 shows the means and standard deviations of the log-likelihood estimates over the replications as well as IRE and average runtime using different methods. Again, <span class="math inline">\(\psi\)</span>-APF performs well.</p>
+<table>
+<caption>Results for the log-likelihood estimates of the AR model.</caption>
+<thead>
+<tr class="header">
+<th align="left">method</th>
+<th align="right">N</th>
+<th align="right">mean</th>
+<th align="right">SD</th>
+<th align="right">IRE</th>
+<th align="right">time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">10</td>
+<td align="right">-144.2271</td>
+<td align="right">1.2130</td>
+<td align="right">0.0025</td>
+<td align="right">0.0013</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">10</td>
+<td align="right">-144.1348</td>
+<td align="right">1.1224</td>
+<td align="right">0.0080</td>
+<td align="right">0.0052</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">10</td>
+<td align="right">-143.6263</td>
+<td align="right">0.2560</td>
+<td align="right">0.0005</td>
+<td align="right">0.0076</td>
+</tr>
+<tr class="even">
+<td align="left">BSF</td>
+<td align="right">100</td>
+<td align="right">-143.6519</td>
+<td align="right">0.3493</td>
+<td align="right">0.0010</td>
+<td align="right">0.0083</td>
+</tr>
+<tr class="odd">
+<td align="left">EKPF</td>
+<td align="right">100</td>
+<td align="right">-143.6475</td>
+<td align="right">0.3316</td>
+<td align="right">0.0051</td>
+<td align="right">0.0452</td>
+</tr>
+<tr class="even">
+<td align="left">PSI</td>
+<td align="right">100</td>
+<td align="right">-143.6000</td>
+<td align="right">0.0932</td>
+<td align="right">0.0004</td>
+<td align="right">0.0448</td>
+</tr>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">1000</td>
+<td align="right">-143.6016</td>
+<td align="right">0.1091</td>
+<td align="right">0.0009</td>
+<td align="right">0.0787</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">1000</td>
+<td align="right">-143.6014</td>
+<td align="right">0.1045</td>
+<td align="right">0.0046</td>
+<td align="right">0.4220</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">1000</td>
+<td align="right">-143.5959</td>
+<td align="right">0.0320</td>
+<td align="right">0.0004</td>
+<td align="right">0.4071</td>
+</tr>
+</tbody>
+</table>
+<p>Although with fixed number of particles the <span class="math inline">\(\psi\)</span>-APF produces smaller standard errors than BSF and PEKF (which behave very similarly) for <span class="math inline">\(\alpha_1\)</span>, their IREs are comparable.</p>
+<table>
+<caption>Results for the alpha_1 estimates of the AR model.</caption>
+<thead>
+<tr class="header">
+<th align="left">method</th>
+<th align="right">N</th>
+<th align="right">mean</th>
+<th align="right">SD</th>
+<th align="right">IRE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">10</td>
+<td align="right">-0.1154</td>
+<td align="right">0.2465</td>
+<td align="right">1e-04</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">10</td>
+<td align="right">-0.1001</td>
+<td align="right">0.2400</td>
+<td align="right">3e-04</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">10</td>
+<td align="right">-0.1368</td>
+<td align="right">0.1594</td>
+<td align="right">2e-04</td>
+</tr>
+<tr class="even">
+<td align="left">BSF</td>
+<td align="right">100</td>
+<td align="right">-0.1342</td>
+<td align="right">0.1082</td>
+<td align="right">1e-04</td>
+</tr>
+<tr class="odd">
+<td align="left">EKPF</td>
+<td align="right">100</td>
+<td align="right">-0.1361</td>
+<td align="right">0.1067</td>
+<td align="right">5e-04</td>
+</tr>
+<tr class="even">
+<td align="left">PSI</td>
+<td align="right">100</td>
+<td align="right">-0.1352</td>
+<td align="right">0.0699</td>
+<td align="right">2e-04</td>
+</tr>
+<tr class="odd">
+<td align="left">BSF</td>
+<td align="right">1000</td>
+<td align="right">-0.1375</td>
+<td align="right">0.0362</td>
+<td align="right">1e-04</td>
+</tr>
+<tr class="even">
+<td align="left">EKPF</td>
+<td align="right">1000</td>
+<td align="right">-0.1385</td>
+<td align="right">0.0349</td>
+<td align="right">5e-04</td>
+</tr>
+<tr class="odd">
+<td align="left">PSI</td>
+<td align="right">1000</td>
+<td align="right">-0.1382</td>
+<td align="right">0.0255</td>
+<td align="right">3e-04</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="discussion" class="section level2">
+<h2>Discussion</h2>
+<p>In this note we have studied the performance of the previously suggested <span class="math inline">\(\psi\)</span>-PF in context of non-linear Gaussian using the extended Kalman filter and smoother as an intermediate approximation, using two simulated case studies. Although there are obvious limitations in using the EKF (such as convergence failures due to severe non-linearities), our results suggest that if reasonably accurate EKF type approximations are available, it is beneficial to incorporate those into particle filter scheme.</p>
 </div>
 <div id="references" class="section level2 unnumbered">
 <h2>References</h2>
@@ -436,16 +806,25 @@ c_t = T_t(\tilde \alpha_t) - \dot{T_t} \tilde \alpha_t.
 <p>Gordon, Neil J., D. J. Salmond, and A. F. M. Smith. 1993. “Novel Approach to Nonlinear/Non-Gaussian Bayesian State Estimation.” <em>IEE Proceedings-F</em> 140 (2): 107–13.</p>
 </div>
 <div id="ref-guarniero-johansen-lee">
-<p>Guarniero, Pieralberto, Adam M. Johansen, and Anthony Lee“The Iterated Auxiliary Particle Filter.” <em>Journal of the American Statistical Association</em> 0 (ja): 0–0. <a href="https://doi.org/10.1080/01621459.2016.1222291">https://doi.org/10.1080/01621459.2016.1222291</a>.</p>
+<p>Guarniero, Pieralberto, Adam M. Johansen, and Anthony Lee. 2017. “The Iterated Auxiliary Particle Filter.” <em>Journal of the American Statistical Association</em> 112 (520): 1636–47. <a href="https://doi.org/10.1080/01621459.2016.1222291">https://doi.org/10.1080/01621459.2016.1222291</a>.</p>
 </div>
 <div id="ref-jazwinski">
 <p>Jazwinski, Andrew. 1970. <em>Stochastic Processes and Filtering Theory</em>. Academic Press.</p>
 </div>
+<div id="ref-kitagawa">
+<p>Kitagawa, Genshiro. 1996. “Monte Carlo Filter and Smoother for Non-Gaussian Nonlinear State Space Models.” <em>Journal of Computational and Graphical Statistics</em> 5 (1): 1–25.</p>
+</div>
+<div id="ref-lindsten-helske-vihola">
+<p>Lindsten, Fredrik, Jouni Helske, and Matti Vihola. 2018. “Graphical Model Inference: Sequential Monte Carlo Meets Deterministic Approximations.” In <em>Advances in Neural Information Processing Systems 31</em>, edited by S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, 8201–11. Curran Associates, Inc. <a href="http://papers.nips.cc/paper/8041-graphical-model-inference-sequential-monte-carlo-meets-deterministic-approximations.pdf">http://papers.nips.cc/paper/8041-graphical-model-inference-sequential-monte-carlo-meets-deterministic-approximations.pdf</a>.</p>
+</div>
 <div id="ref-shephard-pitt">
 <p>Shephard, Neil, and Michael K. Pitt. 1997. “Likelihood Analysis of Non-Gaussian Measurement Time Series.” <em>Biometrika</em> 84 (3): 653–67.</p>
 </div>
+<div id="ref-merwe-doucet-freitas-wan">
+<p>Van Der Merwe, Rudolph, Arnaud Doucet, Nando De Freitas, and Eric Wan. 2000. “The Unscented Particle Filter.” In <em>Proceedings of the 13th International Conference on Neural Information Processing Systems</em>, 563–69. NIPS’00. Cambridge, MA, USA: MIT Press. <a href="https://dl.acm.org/doi/10.5555/3008751.3008833">https://dl.acm.org/doi/10.5555/3008751.3008833</a>.</p>
+</div>
 <div id="ref-vihola-helske-franks">
-<p>Vihola, Matti, Jouni Helske, and Jordan Franks. 2020. “Importance Sampling Type Estimators Based on Approximate Marginal MCMC.” Preprint arXiv:1609.02541v6.</p>
+<p>Vihola, Matti, Jouni Helske, and Jordan Franks. 2020. “Importance Sampling Type Estimators Based on Approximate Marginal MCMC.” <em>Scandinavian Journal of Statistics</em>. <a href="https://doi.org/10.1111/sjos.12492">https://doi.org/10.1111/sjos.12492</a>.</p>
 </div>
 </div>
 </div>

@@ -1,21 +1,19 @@
 #' Bayesian Inference of State Space Models
 #'
 #' Adaptive Markov chain Monte Carlo simulation of state space models using
-#' Robust Adaptive Metropolis algorithm by Vihola (2012).
+#' Robust Adaptive Metropolis algorithm by Vihola (2012). See specific methods for various model types for details.
 #'
 #' @importFrom stats tsp
 #' @param model State space model model of \code{bssm} package.
 #' @param iter Number of MCMC iterations.
-#' @param ... Parameters to specific methods. See \code{\link{run_mcmc.gaussian}} and
-#' \code{\link{run_mcmc.nongaussian}} for details.
+#' @param ... Parameters to specific methods. See \code{\link{run_mcmc.gaussian}},
+#' \code{\link{run_mcmc.nongaussian}}, \code{\link{run_mcmc.ssm_nlg}}, 
+#' and \code{\link{run_mcmc.ssm_sde}} for details.
 #' @export
 #' @rdname run_mcmc
 #' @references Matti Vihola (2012). "Robust adaptive Metropolis algorithm with
 #' coerced acceptance rate". Statistics and Computing, Volume 22, Issue 5,
 #' pages 997--1008.
-#' Matti Vihola, Jouni Helske, Jordan Franks (2020). 
-#' "Importance sampling type estimators based on approximate marginal MCMC"
-#' ArXiv:1609.02541.
 run_mcmc <- function(model, iter, ...) {
   UseMethod("run_mcmc", model)
 }
@@ -45,14 +43,17 @@ run_mcmc <- function(model, iter, ...) {
 #' distribution is \eqn{SS'}. Note that for some parameters 
 #' (currently the standard deviation and dispersion parameters of bsm_lg models) the sampling
 #' is done for transformed parameters with internal_theta = log(theta).
-#' @param end_adaptive_phase If \code{TRUE} (default), $S$ is held fixed after the burnin period.
-#' @param n_threads Number of threads for state simulation.
+#' @param end_adaptive_phase If \code{TRUE} (default), S is held fixed after the burnin period.
+#' @param threads Number of threads for state simulation.
 #' @param seed Seed for the random number generator.
 #' @param ... Ignored.
+#' @references 
+#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based on approximate marginal Markov chain Monte Carlo. 
+#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
 #' @export
 run_mcmc.gaussian <- function(model, iter, output_type = "full",
   burnin = floor(iter / 2), thin = 1, gamma = 2/3,
-  target_acceptance = 0.234, S, end_adaptive_phase = TRUE, n_threads = 1,
+  target_acceptance = 0.234, S, end_adaptive_phase = TRUE, threads = 1,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
   
@@ -76,7 +77,7 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
   
   out <- gaussian_mcmc(model, output_type,
     iter, burnin, thin, gamma, target_acceptance, S, seed,
-    end_adaptive_phase, n_threads, model_type(model))
+    end_adaptive_phase, threads, model_type(model))
   
   if (output_type == 1) {
     colnames(out$alpha) <- names(model$a1)
@@ -136,7 +137,7 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
 #' \code{"is2"} for jump chain importance sampling type weighting, or
 #' \code{"is1"} for importance sampling type weighting where the number of particles used for
 #' weight computations is proportional to the length of the jump chain block.
-#' @param sampling_method If \code{"psi"}, \eqn{\psi}{psi}-auxiliary particle filter is used for state sampling
+#' @param sampling_method If \code{"psi"}, \eqn{\psi}-APF is used for state sampling
 #' (default). If \code{"spdk"}, non-sequential importance sampling based
 #' on Gaussian approximation is used. If \code{"bsf"}, bootstrap filter
 #' is used.
@@ -155,15 +156,16 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
 #' distribution is \eqn{SS'}. Note that for some parameters 
 #' (currently the standard deviation and dispersion parameters of bsm_ng models) the sampling
 #' is done for transformed parameters with internal_theta = log(theta).
-#' @param end_adaptive_phase If \code{TRUE} (default), $S$ is held fixed after the burnin period.
+#' @param end_adaptive_phase If \code{TRUE} (default), S is held fixed after the burnin period.
 #' @param local_approx If \code{TRUE} (default), Gaussian approximation needed for
 #' importance sampling is performed at each iteration. If false, approximation is updated only
 #' once at the start of the MCMC.
-#' @param n_threads Number of threads for state simulation.
+#' @param threads Number of threads for state simulation.
 #' @param seed Seed for the random number generator.
 #' @param max_iter Maximum number of iterations used in Gaussian approximation.
 #' @param conv_tol Tolerance parameter used in Gaussian approximation.
 #' @param ... Ignored.
+#' @examples
 #' set.seed(1)
 #' n <- 50 
 #' slope <- cumsum(c(0, rnorm(n - 1, sd = 0.001)))
@@ -173,13 +175,63 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
 #'   sd_level = halfnormal(0.01, 1), 
 #'   sd_slope = halfnormal(0.01, 0.1), 
 #'   P1 = diag(c(10, 0.1)), distribution = "poisson")
-#' mcmc_is <- run_mcmc(poisson_model, iter = 1000, nsim = 10, mcmc_type = "is2")
+#' mcmc_is <- run_mcmc(poisson_model, iter = 1000, nsim = 10, 
+#'   mcmc_type = "da")
 #' summary(mcmc_is, what = "theta", return_se = TRUE)
+#' 
+#' set.seed(123)
+#' n <- 50
+#' sd_level <- 0.1
+#' drift <- 0.01
+#' beta <- -0.9
+#' phi <- 5
+#' 
+#' level <- cumsum(c(5, drift + rnorm(n - 1, sd = sd_level)))
+#' x <- 3 + (1:n) * drift + sin(1:n + runif(n, -1, 1))
+#' y <- rnbinom(n, size = phi, mu = exp(beta * x + level))
+#' 
+#' model <- bsm_ng(y, xreg = x,
+#'   beta = normal(0, 0, 10),
+#'   phi = halfnormal(1, 10),
+#'   sd_level = halfnormal(0.1, 1), 
+#'   sd_slope = halfnormal(0.01, 0.1),
+#'   a1 = c(0, 0), P1 = diag(c(10, 0.1)^2), 
+#'   distribution = "negative binomial")
+#' 
+#' # run IS-MCMC
+#' fit <- run_mcmc(model, iter = 10000,
+#'   nsim = 10, mcmc_type = "is2", seed = 1)
+#'
+#' # extract states   
+#' d_states <- as.data.frame(fit, variable = "states", time = 1:n)
+#' 
+#' library("dplyr")
+#' library("ggplot2")
+#' 
+#'  # compute summary statistics
+#' level_sumr <- d_states %>% 
+#'   filter(variable == "level") %>%
+#'   group_by(time) %>%
+#'   summarise(mean = Hmisc::wtd.mean(value, weight, normwt = TRUE), 
+#'     lwr = Hmisc::wtd.quantile(value, weight, 
+#'       0.025, normwt = TRUE), 
+#'     upr = Hmisc::wtd.quantile(value, weight, 
+#'       0.975, normwt = TRUE))
+#' 
+#' # visualize
+#' level_sumr %>% ggplot(aes(x = time, y = mean)) + 
+#'   geom_line() +
+#'   geom_line(aes(y = lwr), linetype = "dashed", na.rm = TRUE) +
+#'   geom_line(aes(y = upr), linetype = "dashed", na.rm = TRUE) +
+#'   theme_bw() + 
+#'   theme(legend.title = element_blank()) + 
+#'   xlab("Time") + ylab("Level")
+#' 
 #' 
 run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
   mcmc_type = "da", sampling_method = "psi", burnin = floor(iter/2),
   thin = 1, gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  local_approx  = TRUE, n_threads = 1,
+  local_approx  = TRUE, threads = 1,
   seed = sample(.Machine$integer.max, size = 1), max_iter = 100, conv_tol = 1e-8, ...) {
   
   if(length(model$theta) == 0) stop("No unknown parameters ('model$theta' has length of zero).")
@@ -219,13 +271,13 @@ run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
     "da" = {
       out <- nongaussian_da_mcmc(model, 
         output_type, nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        seed, end_adaptive_phase, n_threads,
+        seed, end_adaptive_phase, threads,
         sampling_method, model_type(model))
     },
     "pm" = {
       out <- nongaussian_pm_mcmc(model, output_type,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        seed, end_adaptive_phase, n_threads, 
+        seed, end_adaptive_phase, threads, 
         sampling_method, model_type(model))
     },
     "is1" =,
@@ -233,14 +285,14 @@ run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
     "is3" = {
       out <- nongaussian_is_mcmc(model, output_type,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        seed, end_adaptive_phase, n_threads, 
+        seed, end_adaptive_phase, threads, 
         sampling_method,
         pmatch(mcmc_type, paste0("is", 1:3)), model_type(model), FALSE)
     },
     "approx" = {
       out <- nongaussian_is_mcmc(model, output_type,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        seed, end_adaptive_phase, n_threads, 
+        seed, end_adaptive_phase, threads, 
         sampling_method, 2, model_type(model), TRUE)
     })
   if (output_type == 1) {
@@ -296,9 +348,9 @@ run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
 #' \code{"is2"} for jump chain importance sampling type weighting, or
 #' \code{"is1"} for importance sampling type weighting where the number of particles used for
 #' weight computations is proportional to the length of the jump chain block.
-#' @param sampling_method If \code{"psi"}, \eqn{\psi}{psi}-auxiliary particle filter is used for state sampling. 
+#' @param sampling_method If \code{"bsf"} (default), bootstrap filter is used for state sampling. 
 #' If \code{"ekf"}, particle filter based on EKF-proposals are used. 
-#' If \code{"bsf"} (default), bootstrap filter is used.
+#' If \code{"psi"}, \eqn{\psi}-APF is used.
 #' @param burnin Length of the burn-in period which is disregarded from the
 #' results. Defaults to \code{iter / 2}.
 #' @param thin Thinning rate. Defaults to 1. Increase for large models in
@@ -314,8 +366,8 @@ run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
 #' distribution is \eqn{SS'}. Note that for some parameters 
 #' (currently the standard deviation and dispersion parameters of bsm_ng models) the sampling
 #' is done for transformed parameters with internal_theta = log(theta).
-#' @param end_adaptive_phase If \code{TRUE} (default), $S$ is held fixed after the burnin period.
-#' @param n_threads Number of threads for state simulation.
+#' @param end_adaptive_phase If \code{TRUE} (default), S is held fixed after the burnin period.
+#' @param threads Number of threads for state simulation.
 #' @param seed Seed for the random number generator.
 #' @param max_iter Maximum number of iterations used in Gaussian approximation.
 #' @param conv_tol Tolerance parameter used in Gaussian approximation.
@@ -323,11 +375,14 @@ run_mcmc.nongaussian <- function(model, iter, nsim, output_type = "full",
 #' \code{iekf_iter} iterations in place of standard EKF. Defaults to zero.
 #' @param ... Ignored.
 #' @export
+#' @references 
+#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based on approximate marginal Markov chain Monte Carlo. 
+#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
 run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
   mcmc_type = "da", sampling_method = "bsf",
   burnin = floor(iter/2), thin = 1,
   gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  n_threads = 1, seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
+  threads = 1, seed = sample(.Machine$integer.max, size = 1), max_iter = 100,
   conv_tol = 1e-8, iekf_iter = 0, ...) {
   
   if(length(model$theta) == 0) stop("No unknown parameters ('model$theta' has length of zero).")
@@ -356,7 +411,7 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
         model$known_tv_params, as.integer(model$time_varying),
         model$n_states, model$n_etas, seed,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        end_adaptive_phase, n_threads, max_iter, conv_tol,
+        end_adaptive_phase, threads, max_iter, conv_tol,
         sampling_method,iekf_iter, output_type, 
         default_update_fn, default_prior_fn)
     },
@@ -367,7 +422,7 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
         model$known_tv_params, as.integer(model$time_varying),
         model$n_states, model$n_etas, seed,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        end_adaptive_phase, n_threads, max_iter, conv_tol,
+        end_adaptive_phase, threads, max_iter, conv_tol,
         sampling_method,iekf_iter, output_type, 
         default_update_fn, default_prior_fn)
     },
@@ -382,7 +437,7 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
         model$known_tv_params, as.integer(model$time_varying),
         model$n_states, model$n_etas, seed,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        end_adaptive_phase, n_threads, pmatch(mcmc_type, paste0("is", 1:3)),
+        end_adaptive_phase, threads, pmatch(mcmc_type, paste0("is", 1:3)),
         sampling_method, max_iter, conv_tol, iekf_iter, 
         output_type, default_update_fn, 
         default_prior_fn, FALSE)
@@ -394,7 +449,7 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
         model$known_tv_params, as.integer(model$time_varying),
         model$n_states, model$n_etas, seed,
         iter, burnin, thin, gamma, target_acceptance, S,
-        end_adaptive_phase,  n_threads, iekf_iter, output_type, 
+        end_adaptive_phase,  threads, iekf_iter, output_type, 
         default_update_fn, default_prior_fn)
     },
     "approx" = {
@@ -404,7 +459,7 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
         model$known_tv_params, as.integer(model$time_varying),
         model$n_states, model$n_etas, seed,
         nsim, iter, burnin, thin, gamma, target_acceptance, S,
-        end_adaptive_phase, n_threads, 2,
+        end_adaptive_phase, threads, 2,
         sampling_method, max_iter, conv_tol, 
         iekf_iter, output_type, default_update_fn, 
         default_prior_fn, TRUE)
@@ -474,18 +529,21 @@ run_mcmc.ssm_nlg <-  function(model, iter, nsim, output_type = "full",
 #' distribution is \eqn{SS'}. Note that for some parameters 
 #' (currently the standard deviation and dispersion parameters of bsm_ng models) the sampling
 #' is done for transformed parameters with internal_theta = log(theta).
-#' @param end_adaptive_phase If \code{TRUE} (default), $S$ is held fixed after the burnin period.
-#' @param n_threads Number of threads for state simulation.
+#' @param end_adaptive_phase If \code{TRUE} (default), S is held fixed after the burnin period.
+#' @param threads Number of threads for state simulation.
 #' @param L_c,L_f Integer values defining the discretization levels for first and second stages (defined as 2^L). 
 #' For PM methods, maximum of these is used.
 #' @param seed Seed for the random number generator.
 #' @param ... Ignored.
 #' @export
+#' @references 
+#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based on approximate marginal Markov chain Monte Carlo. 
+#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
 run_mcmc.ssm_sde <-  function(model, iter, nsim, output_type = "full",
   mcmc_type = "da", L_c, L_f,
   burnin = floor(iter/2), thin = 1,
   gamma = 2/3, target_acceptance = 0.234, S, end_adaptive_phase = TRUE,
-  n_threads = 1, seed = sample(.Machine$integer.max, size = 1), ...) {
+  threads = 1, seed = sample(.Machine$integer.max, size = 1), ...) {
   
   if(any(c(model$drift, model$diffusion, model$ddiffusion,
     model$prior_pdf, model$obs_pdf) %in% c("<pointer: (nil)>", "<pointer: 0x0>"))) {
@@ -535,7 +593,7 @@ run_mcmc.ssm_sde <-  function(model, iter, nsim, output_type = "full",
         nsim, L_c, L_f, seed,
         iter, burnin, thin, gamma, target_acceptance, S,
         end_adaptive_phase, pmatch(mcmc_type, paste0("is", 1:3)), 
-        n_threads, output_type)
+        threads, output_type)
     }
   }
   colnames(out$alpha) <- model$state_names

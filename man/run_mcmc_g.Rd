@@ -14,7 +14,7 @@
   target_acceptance = 0.234,
   S,
   end_adaptive_phase = TRUE,
-  n_threads = 1,
+  threads = 1,
   seed = sample(.Machine$integer.max, size = 1),
   ...
 )
@@ -50,9 +50,9 @@ distribution is \eqn{SS'}. Note that for some parameters
 (currently the standard deviation and dispersion parameters of bsm_lg models) the sampling
 is done for transformed parameters with internal_theta = log(theta).}
 
-\item{end_adaptive_phase}{If \code{TRUE} (default), $S$ is held fixed after the burnin period.}
+\item{end_adaptive_phase}{If \code{TRUE} (default), S is held fixed after the burnin period.}
 
-\item{n_threads}{Number of threads for state simulation.}
+\item{threads}{Number of threads for state simulation.}
 
 \item{seed}{Seed for the random number generator.}
 
@@ -60,4 +60,8 @@ is done for transformed parameters with internal_theta = log(theta).}
 }
 \description{
 Bayesian Inference of Linear-Gaussian State Space Models
+}
+\references{
+Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based on approximate marginal Markov chain Monte Carlo. 
+Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
 }

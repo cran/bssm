@@ -5,7 +5,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## ----data---------------------------------------------------------------------
 set.seed(1)
 
-p0 <- 50 # population size at t = 0
+p1 <- 50 # population size at t = 1
 K <- 500 # carrying capacity
 H <- 1 # standard deviation of obs noise
 
@@ -17,7 +17,7 @@ t <- seq(0.1, 30, dT)
 n <- length(t)
 r <- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = 0.05))))
 p <- numeric(n)
-p[1] <- p0
+p[1] <- p1
 for(i in 2:n)
   p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 # observations

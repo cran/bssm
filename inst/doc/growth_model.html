@@ -384,11 +384,11 @@ y_t = p_t + \epsilon_t,\\
 p_{t+1} = K p_t \frac{\exp(r_t dt)}{K + p_t (\exp(r_tdt ) - 1)} + \xi_t,\\
 r_t = \frac{\exp{r&#39;_t}}{1 + \exp{r&#39;_t}},\\
 r&#39;_{t+1} = r&#39;_t + \eta_t,
-\]</span> with constant carrying capacity <span class="math inline">\(K = 500\)</span>, initial population size <span class="math inline">\(p_0 = 50\)</span>, initial growth rate on logit scale <span class="math inline">\(r&#39;_0 = -1.5\)</span>, <span class="math inline">\(dt = 0.1\)</span>, <span class="math inline">\(\xi \sim N(0,1)\)</span>, <span class="math inline">\(\eta \sim N(0,0.05)\)</span>, and <span class="math inline">\(\epsilon \sim N(0, 1)\)</span>.</p>
+\]</span> with constant carrying capacity <span class="math inline">\(K = 500\)</span>, initial population size <span class="math inline">\(p_1 = 50\)</span>, initial growth rate on logit scale <span class="math inline">\(r&#39;_1 = -1.5\)</span>, <span class="math inline">\(dt = 0.1\)</span>, <span class="math inline">\(\xi \sim N(0,1)\)</span>, <span class="math inline">\(\eta \sim N(0,0.05)\)</span>, and <span class="math inline">\(\epsilon \sim N(0, 1)\)</span>.</p>
 <p>Let’s first simulate some data, with <span class="math inline">\(\sigma_r=\sigma_p=0\)</span>:</p>
 <pre class="r"><code>set.seed(1)
 
-p0 &lt;- 50 # population size at t = 0
+p1 &lt;- 50 # population size at t = 1
 K &lt;- 500 # carrying capacity
 H &lt;- 1 # standard deviation of obs noise
 
@@ -400,7 +400,7 @@ t &lt;- seq(0.1, 30, dT)
 n &lt;- length(t)
 r &lt;- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = 0.05))))
 p &lt;- numeric(n)
-p[1] &lt;- p0
+p[1] &lt;- p1
 for(i in 2:n)
   p[i] &lt;- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 # observations
@@ -427,7 +427,7 @@ arma::vec T_fn(const unsigned int t, const arma::vec&amp; alpha, const arma::vec
 <p>After creating the file for <code>C++</code> functions, you need to compile the file using <code>Rcpp</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>:</p>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;ssm_nlg_template.cpp&quot;)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork): path[1]=&quot;C:/
-## Users/jovetale/AppData/Local/Temp/RtmpmeuvAc/Rbuild3ccc6578137f/bssm/
+## Users/jovetale/AppData/Local/Temp/RtmpWecOVx/Rbuild438074ce7890/bssm/
 ## vignettes/../inst/include&quot;: The system cannot find the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()</code></pre>
 <p>This takes a few seconds. let’s make less than optimal initial guess for <span class="math inline">\(\theta\)</span>, the standard deviation of observational level noise, the standard deviations of the process noises (which were zero but let’s pretend that we do not know that), and define the prior distribution for <span class="math inline">\(\alpha_1\)</span>:</p>
@@ -464,10 +464,10 @@ ts.plot(cbind(y, out_filter$att[, 2], out_smoother$alphahat[, 2]), col = 1:3)</c
 mcmc_ekf_res &lt;- run_mcmc(model, iter = 2e4, burnin = 5000, 
   mcmc_type = &quot;ekf&quot;)
 summary(mcmc_res, return_se = TRUE)</code></pre>
-<pre><code>##         Mean         SD        SE-IS           SE      ESS ESS of weights
-## H  1.1628909 0.08833685 0.0018408986 0.0023109951 1461.120       1827.922
-## R1 0.0529521 0.02517727 0.0005417179 0.0007771702 1049.506       1587.621
-## R2 1.0060194 0.12120939 0.0024910654 0.0035465256 1168.063       1811.881</code></pre>
+<pre><code>##         Mean         SD           SE      ESS        SE-IS   ESS-IS
+## H  1.1628909 0.08833685 0.0023109951 1461.120 0.0018408986 1827.922
+## R1 0.0529521 0.02517727 0.0007771702 1049.506 0.0005417179 1587.621
+## R2 1.0060194 0.12120939 0.0035465256 1168.063 0.0024910654 1811.881</code></pre>
 <pre class="r"><code>summary(mcmc_ekf_res, return_se = TRUE)</code></pre>
 <pre><code>##          Mean         SD           SE       ESS
 ## H  1.15409447 0.09007168 0.0023798513 1432.4413
@@ -504,7 +504,7 @@ r_summary &lt;- rbind(d1, d2) %&gt;%
     mean = wtd.mean(plogis(value), weight, normwt = TRUE), 
     lwr = wtd.quantile(plogis(value), weight, 0.025, normwt = TRUE), 
     upr = wtd.quantile(plogis(value), weight, 0.975, normwt = TRUE))</code></pre>
-<pre><code>## `summarise()` regrouping by &#39;time&#39; (override with `.groups` argument)</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;time&#39; (override with `.groups` argument)</code></pre>
 <pre class="r"><code>p_summary &lt;- rbind(d1, d2) %&gt;% 
   filter(variable == &quot;p&quot;) %&gt;%
   group_by(time, method) %&gt;%
@@ -512,7 +512,7 @@ r_summary &lt;- rbind(d1, d2) %&gt;%
     mean = wtd.mean(value, weight, normwt = TRUE), 
     lwr = wtd.quantile(value, weight, 0.025, normwt = TRUE), 
     upr = wtd.quantile(value, weight, 0.975, normwt = TRUE))</code></pre>
-<pre><code>## `summarise()` regrouping by &#39;time&#39; (override with `.groups` argument)</code></pre>
+<pre><code>## `summarise()` regrouping output by &#39;time&#39; (override with `.groups` argument)</code></pre>
 <p>Above we used the weighted versions of mean and quantile functions provided by the <code>Hmisc</code> <span class="citation">(Harrell Jr, Charles Dupont, and others. <a href="#ref-hmisc" role="doc-biblioref">2020</a>)</span> package as our IS-MCMC algorithm produces weighted samples of the posterior (alternative slightly less efficient approach would be to just sample with replacement using the weight and proceed with the resulting unweighted posterior sample).</p>
 <p>Using <code>ggplot2</code> <span class="citation">(Wickham <a href="#ref-ggplot2" role="doc-biblioref">2016</a>)</span> we can compare our two estimation methods:</p>
 <pre class="r"><code>library(&quot;ggplot2&quot;)
@@ -691,7 +691,7 @@ Rcpp::List create_xptrs() {
 <p>Harrell Jr, Frank E, with contributions from Charles Dupont, and many others. 2020. <em>Hmisc: Harrell Miscellaneous</em>. <a href="https://CRAN.R-project.org/package=Hmisc">https://CRAN.R-project.org/package=Hmisc</a>.</p>
 </div>
 <div id="ref-vihola-helske-franks">
-<p>Vihola, Matti, Jouni Helske, and Jordan Franks. 2020. “Importance Sampling Type Estimators Based on Approximate Marginal MCMC.” Preprint arXiv:1609.02541v6.</p>
+<p>Vihola, Matti, Jouni Helske, and Jordan Franks. 2020. “Importance Sampling Type Estimators Based on Approximate Marginal MCMC.” <em>Scandinavian Journal of Statistics</em>. <a href="https://doi.org/10.1111/sjos.12492">https://doi.org/10.1111/sjos.12492</a>.</p>
 </div>
 <div id="ref-ggplot2">
 <p>Wickham, Hadley. 2016. <em>Ggplot2: Elegant Graphics for Data Analysis</em>. Springer-Verlag New York. <a href="https://ggplot2.tidyverse.org">https://ggplot2.tidyverse.org</a>.</p>

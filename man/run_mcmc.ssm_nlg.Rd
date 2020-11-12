@@ -17,7 +17,7 @@
   target_acceptance = 0.234,
   S,
   end_adaptive_phase = TRUE,
-  n_threads = 1,
+  threads = 1,
   seed = sample(.Machine$integer.max, size = 1),
   max_iter = 100,
   conv_tol = 1e-08,
@@ -50,9 +50,9 @@ or one of the three importance sampling type weighting schemes:
 \code{"is1"} for importance sampling type weighting where the number of particles used for
 weight computations is proportional to the length of the jump chain block.}
 
-\item{sampling_method}{If \code{"psi"}, \eqn{\psi}{psi}-auxiliary particle filter is used for state sampling. 
+\item{sampling_method}{If \code{"bsf"} (default), bootstrap filter is used for state sampling. 
 If \code{"ekf"}, particle filter based on EKF-proposals are used. 
-If \code{"bsf"} (default), bootstrap filter is used.}
+If \code{"psi"}, \eqn{\psi}-APF is used.}
 
 \item{burnin}{Length of the burn-in period which is disregarded from the
 results. Defaults to \code{iter / 2}.}
@@ -74,9 +74,9 @@ distribution is \eqn{SS'}. Note that for some parameters
 (currently the standard deviation and dispersion parameters of bsm_ng models) the sampling
 is done for transformed parameters with internal_theta = log(theta).}
 
-\item{end_adaptive_phase}{If \code{TRUE} (default), $S$ is held fixed after the burnin period.}
+\item{end_adaptive_phase}{If \code{TRUE} (default), S is held fixed after the burnin period.}
 
-\item{n_threads}{Number of threads for state simulation.}
+\item{threads}{Number of threads for state simulation.}
 
 \item{seed}{Seed for the random number generator.}
 
@@ -91,4 +91,8 @@ is done for transformed parameters with internal_theta = log(theta).}
 }
 \description{
 Methods for posterior inference of states and parameters.
+}
+\references{
+Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based on approximate marginal Markov chain Monte Carlo. 
+Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
 }
