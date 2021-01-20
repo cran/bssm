@@ -28,14 +28,14 @@ prior <- halfnormal(0.1, 1)
 UKgas_model <- bsm_lg(log10(UKgas), sd_y = prior, sd_level = prior,
   sd_slope = prior, sd_seasonal =  prior)
 
-mcmc_bsm <- run_mcmc(UKgas_model, iter = 4e4)
+mcmc_bsm <- run_mcmc(UKgas_model, iter = 4e4, seed = 1)
 mcmc_bsm
 
 ## ----plot---------------------------------------------------------------------
 suppressMessages(library("ggplot2"))
 d <- as.data.frame(mcmc_bsm, variable = "theta")
 ggplot(d, aes(x = value)) + 
-  geom_density(bw = 0.001, fill = "#92f0a8") + 
+  geom_density(adjust = 3, fill = "#92f0a8") + 
   facet_wrap(~ variable, scales = "free") + 
   theme_bw()
 

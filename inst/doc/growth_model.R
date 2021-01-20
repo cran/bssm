@@ -28,11 +28,10 @@ Rcpp::sourceCpp("ssm_nlg_template.cpp")
 pntrs <- create_xptrs()
 
 ## ----theta--------------------------------------------------------------------
-initial_theta <- c(H = 1, R1 = 0.05, R2 = 1)
+initial_theta <- c(H = 1.2, R1 = 0.03, R2 = 0.5)
 
 # dT, K, a1 and the prior variances
 known_params <- c(dT = dT, K = K, a11 = -1, a12 = 50, P11 = 1, P12 = 100)
-
 
 ## ----test---------------------------------------------------------------------
 T_fn(0, c(100, 200), initial_theta, known_params, matrix(1))
@@ -53,10 +52,13 @@ ts.plot(cbind(y, out_filter$att[, 2], out_smoother$alphahat[, 2]), col = 1:3)
 ts.plot(plogis(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1])), col = 1:2)
 
 ## ----mcmc---------------------------------------------------------------------
-mcmc_res <- run_mcmc(model, iter = 2e4, burnin = 5000, nsim = 10, 
-  mcmc_type = "is2", sampling_method = "psi")
-mcmc_ekf_res <- run_mcmc(model, iter = 2e4, burnin = 5000, 
-  mcmc_type = "ekf")
+# Cholesky of initial proposal matrix (taken from previous runs)
+# used here to speed up convergence due to the small number of iterations
+S <- matrix(c(0.15, 0.01, -0.12, 0, 0.04, -0.05, 0, 0, 0.16), 3, 3) 
+mcmc_res <- run_mcmc(model, iter = 6000, burnin = 1000, particles = 10, 
+  mcmc_type = "is2", sampling_method = "psi", S = S)
+mcmc_ekf_res <- run_mcmc(model, iter = 6000, burnin = 1000, 
+  mcmc_type = "ekf", S = S)
 summary(mcmc_res, return_se = TRUE)
 summary(mcmc_ekf_res, return_se = TRUE)
 
@@ -83,7 +85,6 @@ p_summary <- rbind(d1, d2) %>%
     mean = wtd.mean(value, weight, normwt = TRUE), 
     lwr = wtd.quantile(value, weight, 0.025, normwt = TRUE), 
     upr = wtd.quantile(value, weight, 0.975, normwt = TRUE))
-
 
 ## ----figures------------------------------------------------------------------
 library("ggplot2")

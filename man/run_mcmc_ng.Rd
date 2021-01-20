@@ -7,16 +7,16 @@
 \method{run_mcmc}{nongaussian}(
   model,
   iter,
-  nsim,
+  particles,
   output_type = "full",
-  mcmc_type = "da",
+  mcmc_type = "is2",
   sampling_method = "psi",
   burnin = floor(iter/2),
   thin = 1,
   gamma = 2/3,
   target_acceptance = 0.234,
   S,
-  end_adaptive_phase = TRUE,
+  end_adaptive_phase = FALSE,
   local_approx = TRUE,
   threads = 1,
   seed = sample(.Machine$integer.max, size = 1),
@@ -30,7 +30,7 @@
 
 \item{iter}{Number of MCMC iterations.}
 
-\item{nsim}{Number of state samples per MCMC iteration.
+\item{particles}{Number of state samples per MCMC iteration.
 Ignored if \code{mcmc_type} is \code{"approx"}.}
 
 \item{output_type}{Either \code{"full"} 
@@ -41,11 +41,11 @@ and posterior samples of theta).}
 
 \item{mcmc_type}{What MCMC algorithm to use? Possible choices are
 \code{"pm"} for pseudo-marginal MCMC,
-\code{"da"} for delayed acceptance version of PMCMC (default), 
+\code{"da"} for delayed acceptance version of PMCMC , 
 \code{"approx"} for approximate inference based on the Gaussian approximation of the model,
 or one of the three importance sampling type weighting schemes:
 \code{"is3"} for simple importance sampling (weight is computed for each MCMC iteration independently),
-\code{"is2"} for jump chain importance sampling type weighting, or
+\code{"is2"} for jump chain importance sampling type weighting (default), or
 \code{"is1"} for importance sampling type weighting where the number of particles used for
 weight computations is proportional to the length of the jump chain block.}
 
@@ -74,10 +74,10 @@ distribution is \eqn{SS'}. Note that for some parameters
 (currently the standard deviation and dispersion parameters of bsm_ng models) the sampling
 is done for transformed parameters with internal_theta = log(theta).}
 
-\item{end_adaptive_phase}{If \code{TRUE} (default), S is held fixed after the burnin period.}
+\item{end_adaptive_phase}{If \code{TRUE}, S is held fixed after the burnin period. Default is \code{FALSE}.}
 
 \item{local_approx}{If \code{TRUE} (default), Gaussian approximation needed for
-importance sampling is performed at each iteration. If false, approximation is updated only
+importance sampling is performed at each iteration. If \code{FALSE}, approximation is updated only
 once at the start of the MCMC.}
 
 \item{threads}{Number of threads for state simulation.}
@@ -103,7 +103,9 @@ poisson_model <- bsm_ng(y,
   sd_level = halfnormal(0.01, 1), 
   sd_slope = halfnormal(0.01, 0.1), 
   P1 = diag(c(10, 0.1)), distribution = "poisson")
-mcmc_is <- run_mcmc(poisson_model, iter = 1000, nsim = 10, 
+  
+# Note small number of iterations for CRAN checks
+mcmc_is <- run_mcmc(poisson_model, iter = 1000, particles = 10, 
   mcmc_type = "da")
 summary(mcmc_is, what = "theta", return_se = TRUE)
 
@@ -127,8 +129,9 @@ model <- bsm_ng(y, xreg = x,
   distribution = "negative binomial")
 
 # run IS-MCMC
-fit <- run_mcmc(model, iter = 10000,
-  nsim = 10, mcmc_type = "is2", seed = 1)
+# Note small number of iterations for CRAN checks
+fit <- run_mcmc(model, iter = 5000,
+  particles = 10, mcmc_type = "is2", seed = 1)
 
 # extract states   
 d_states <- as.data.frame(fit, variable = "states", time = 1:n)
@@ -155,5 +158,40 @@ level_sumr \%>\% ggplot(aes(x = time, y = mean)) +
   theme(legend.title = element_blank()) + 
   xlab("Time") + ylab("Level")
 
+# Bivariate Poisson model:
+
+set.seed(1)
+x <- cumsum(c(3, rnorm(19, sd = 0.5)))
+y <- cbind(
+  rpois(20, exp(x)), 
+  rpois(20, exp(x)))
+
+prior_fn <- function(theta) {
+  # half-normal prior using transformation
+  dnorm(exp(theta), 0, 1, log = TRUE) + theta # plus jacobian term
+}
+
+update_fn <- function(theta) {
+  list(R = array(exp(theta), c(1, 1, 1)))
+}
+
+model <- ssm_mng(y = y, Z = matrix(1,2,1), T = 1, 
+  R = 0.1, P1 = 1, distribution = "poisson",
+  init_theta = log(0.1), 
+  prior_fn = prior_fn, update_fn = update_fn)
+  
+# Note small number of iterations for CRAN checks
+out <- run_mcmc(model, iter = 5000, mcmc_type = "approx")
+
+sumr <- as.data.frame(out, variable = "states") \%>\% 
+  group_by(time) \%>\% mutate(value = exp(value)) \%>\%
+  summarise(mean = mean(value), 
+    ymin = quantile(value, 0.05), ymax = quantile(value, 0.95))
+ggplot(sumr, aes(time, mean)) + 
+geom_ribbon(aes(ymin = ymin, ymax = ymax),alpha = 0.25) + 
+geom_line() + 
+geom_line(data = data.frame(mean = y[, 1], time = 1:20), colour = "tomato") + 
+geom_line(data = data.frame(mean = y[, 2], time = 1:20), colour = "tomato") +
+theme_bw()
 
 }

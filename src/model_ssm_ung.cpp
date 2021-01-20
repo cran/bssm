@@ -318,7 +318,7 @@ void ssm_ung::laplace_iter(const arma::vec& signal) {
   case 3: {
     // negative binomial
     arma::vec exptmp = arma::exp(signal) % u;
-    approx_model.HH = square(phi + exptmp) / (phi * exptmp % (y + phi));
+    approx_model.HH = arma::square(phi + exptmp) / (phi * exptmp % (y + phi));
     approx_model.y = signal + (phi + exptmp) % (y - exptmp) / ((y + phi) % exptmp);
   } break;
   case 4: {
@@ -423,7 +423,6 @@ arma::vec ssm_ung::log_weights(
           alpha.slice(i).col(t) + xbeta(t));
         weights(i) = -phi * simsignal - (y(t) * phi * exp(-simsignal) / u(t)) +
           0.5 * std::pow((approx_model.y(t) - simsignal) / approx_model.H(t), 2.0);
-        
       }
       break;
       // case 5  :
@@ -543,14 +542,18 @@ double ssm_ung::psi_filter(const unsigned int nsim, arma::cube& alpha,
   arma::vec normalized_weights(nsim);
   double loglik = 0.0;
   if(arma::is_finite(y(0))) {
-    weights.col(0) = arma::exp(log_weights(0, alpha) - scales(0));
+    weights.col(0) = log_weights(0, alpha) - scales(0);
+    
+    double max_weight = weights.col(0).max();
+    weights.col(0) = arma::exp(weights.col(0) - max_weight);
+    
     double sum_weights = arma::accu(weights.col(0));
     if(sum_weights > 0.0){
       normalized_weights = weights.col(0) / sum_weights;
     } else {
       return -std::numeric_limits<double>::infinity();
     }
-    loglik = approx_loglik + std::log(sum_weights / nsim);
+    loglik = max_weight + approx_loglik + std::log(sum_weights / nsim);
   } else {
     weights.col(0).ones();
     normalized_weights.fill(1.0 / nsim);
@@ -579,20 +582,24 @@ double ssm_ung::psi_filter(const unsigned int nsim, arma::cube& alpha,
     }
     
     if ((t < (n - 1)) && arma::is_finite(y(t + 1))) {
-      weights.col(t + 1) =
-        arma::exp(log_weights(t + 1, alpha) - scales(t + 1));
+      weights.col(t + 1) = log_weights(t + 1, alpha) - scales(t + 1);
+      
+      double max_weight = weights.col(t + 1).max();
+      weights.col(t + 1) = arma::exp(weights.col(t + 1) - max_weight);
+      
       double sum_weights = arma::accu(weights.col(t + 1));
       if(sum_weights > 0.0){
         normalized_weights = weights.col(t + 1) / sum_weights;
       } else {
         return -std::numeric_limits<double>::infinity();
       }
-      loglik += std::log(sum_weights / nsim);
+      loglik += max_weight + std::log(sum_weights / nsim);
     } else {
       weights.col(t + 1).ones();
       normalized_weights.fill(1.0 / nsim);
     }
   }
+  
   return loglik;
 }
 
@@ -827,35 +834,35 @@ arma::cube ssm_ung::predict_past(const arma::mat& theta_posterior,
     arma::mat y(1, n);
     
     switch(distribution) {
-    case 0:
-      y.zeros();
-      break;
-    case 1:
-      for (unsigned int t = 0; t < n; t++) {
-        y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
-          arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
-      }
-      break;
-    case 2:
-      for (unsigned int t = 0; t < n; t++) {
-        double tmp = std::exp(xbeta(t) + D(t * Dtv) +
-          arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
-        y(0, t) = tmp / (1.0 + tmp);
-      }
-      
-      break;
-    case 3:
-      for (unsigned int t = 0; t < n; t++) {
-        y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
-          arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
-      }
-      break;
-    case 4:
-      for (unsigned int t = 0; t < n; t++) {
-        y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
-          arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
-      }
-      break;
+      case 0:
+        y.zeros();
+        break;
+      case 1:
+        for (unsigned int t = 0; t < n; t++) {
+          y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
+            arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
+        }
+        break;
+      case 2:
+        for (unsigned int t = 0; t < n; t++) {
+          double tmp = std::exp(xbeta(t) + D(t * Dtv) +
+            arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
+          y(0, t) = tmp / (1.0 + tmp);
+        }
+        
+        break;
+      case 3:
+        for (unsigned int t = 0; t < n; t++) {
+          y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
+            arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
+        }
+        break;
+      case 4:
+        for (unsigned int t = 0; t < n; t++) {
+          y(0, t) = std::exp(xbeta(t) + D(t * Dtv) +
+            arma::as_scalar(Z.col(t * Ztv).t() * alpha.slice(i).col(t)));
+        }
+        break;
     }
     if (predict_type == 1) {
       

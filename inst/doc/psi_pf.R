@@ -10,7 +10,7 @@ library(dplyr)
 #  library("foreach")
 #  library("doParallel")
 #  
-#  growth_model_experiment <- function(n_cores, nsim, nsim_states) {
+#  growth_model_experiment <- function(n_cores, nsim, particles) {
 #  
 #    set.seed(1)
 #  
@@ -54,15 +54,15 @@ library(dplyr)
 #  
 #      for(i in 1:ncol(bsf)) {
 #  
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "bsf"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
 #        bsf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #  
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "psi"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
 #        psi[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #  
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "ekf"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
 #        ekpf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #      }
@@ -72,7 +72,7 @@ library(dplyr)
 #  
 #      data.frame(x,
 #        method = rep(factor(c("BSF", "EKPF", "PSI")), each = ncol(bsf)),
-#        N = nsim_states)
+#        N = particles)
 #    }
 #    stopCluster(cl)
 #    results
@@ -122,7 +122,7 @@ library(dplyr)
 #    known_params = known_params, known_tv_params = matrix(1),
 #    n_states = 2, n_etas = 2)
 #  
-#  out <- particle_smoother(model, nsim = 1e5, method = "bsf")
+#  out <- particle_smoother(model, particles = 1e5, method = "bsf")
 #  truth <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #    out$alphahat[n, ], diag(out$Vt[, , n]))
 #  names(truth) <- c("logLik", "alpha_11", "alpha_21", "V_11", "V_21", "alpha_1n",
@@ -171,7 +171,7 @@ readRDS("psi_pf_experiments/table2.rds")
 #  library("foreach")
 #  library("doParallel")
 #  
-#  ar_exp_model_experiment <- function(n_cores, nsim, nsim_states, theta) {
+#  ar_exp_model_experiment <- function(n_cores, nsim, particles, theta) {
 #  
 #    set.seed(1)
 #    n <- 100
@@ -197,15 +197,15 @@ readRDS("psi_pf_experiments/table2.rds")
 #  
 #  
 #      for(i in 1:ncol(bsf)) {
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "bsf"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
 #        bsf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #  
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "psi"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
 #        psi[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #  
-#        time <- system.time(out <- particle_smoother(model, nsim = nsim_states, method = "ekf"))[3]
+#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
 #        ekpf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #      }
@@ -214,7 +214,7 @@ readRDS("psi_pf_experiments/table2.rds")
 #  
 #      data.frame(x,
 #        method = rep(factor(c("BSF", "EKPF", "PSI")), each = ncol(bsf)),
-#        N = nsim_states)
+#        N = particles)
 #    }
 #    stopCluster(cl)
 #    results

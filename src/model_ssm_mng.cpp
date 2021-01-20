@@ -283,7 +283,7 @@ void ssm_mng::laplace_iter(const arma::mat& signal) {
     case 3: {
       // negative binomial
       arma::rowvec exptmp = arma::exp(signal.row(i)) % u.row(i);
-      approx_model.HH.tube(i, i) = square(phi(i) + exptmp) / 
+      approx_model.HH.tube(i, i) = arma::square(phi(i) + exptmp) / 
         (phi(i) * exptmp % (y.row(i) + phi(i)));
       approx_model.y.row(i) = signal.row(i) +
         (phi(i) + exptmp) % (y.row(i) - exptmp) / ((y.row(i) + phi(i)) % exptmp);
@@ -296,7 +296,7 @@ void ssm_mng::laplace_iter(const arma::mat& signal) {
     } break;
     case 5: {
       // gaussian
-      approx_model.HH.tube(i, i) = phi(i) * phi(i);
+      approx_model.HH.tube(i, i).fill(phi(i) * phi(i));
       approx_model.y.row(i) = y.row(i);
     } break;
     }
@@ -488,14 +488,18 @@ double ssm_mng::psi_filter(const unsigned int nsim, arma::cube& alpha,
   double loglik = 0.0;
   arma::uvec na_y = arma::find_nonfinite(y.col(0));
   if (na_y.n_elem < p) {
-    weights.col(0) = arma::exp(log_weights(0, alpha) - scales(0));
+    
+    weights.col(0) = log_weights(0, alpha) - scales(0);
+    double max_weight = weights.col(0).max();
+    weights.col(0) = arma::exp(weights.col(0) - max_weight);
+    
     double sum_weights = arma::accu(weights.col(0));
     if(sum_weights > 0.0){
       normalized_weights = weights.col(0) / sum_weights;
     } else {
       return -std::numeric_limits<double>::infinity();
     }
-    loglik = approx_loglik + std::log(sum_weights / nsim);
+    loglik = max_weight + approx_loglik + std::log(sum_weights / nsim);
   } else {
     weights.col(0).ones();
     normalized_weights.fill(1.0 / nsim);
@@ -524,15 +528,18 @@ double ssm_mng::psi_filter(const unsigned int nsim, arma::cube& alpha,
     }
     
     if ((t < (n - 1)) && arma::uvec(arma::find_nonfinite(y.col(t + 1))).n_elem < p) {
-      weights.col(t + 1) =
-        arma::exp(log_weights(t + 1, alpha) - scales(t + 1));
+      
+      weights.col(t + 1) = log_weights(t + 1, alpha) - scales(t + 1);
+      double max_weight = weights.col(t + 1).max();
+      weights.col(t + 1) = arma::exp(weights.col(t + 1) - max_weight);
+      
       double sum_weights = arma::accu(weights.col(t + 1));
       if(sum_weights > 0.0){
         normalized_weights = weights.col(t + 1) / sum_weights;
       } else {
         return -std::numeric_limits<double>::infinity();
       }
-      loglik += std::log(sum_weights / nsim);
+      loglik += max_weight + std::log(sum_weights / nsim);
     } else {
       weights.col(t + 1).ones();
       normalized_weights.fill(1.0 / nsim);

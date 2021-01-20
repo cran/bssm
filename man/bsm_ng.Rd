@@ -38,15 +38,16 @@ If missing, the seasonal component is omitted from the model.}
 \item{sd_noise}{Prior for the standard error of the additional noise term.
 See \link[=uniform]{priors} for details. If missing, no additional noise term is used.}
 
-\item{distribution}{distribution of the observation. Possible choices are
-\code{"poisson"}, \code{"binomial"}, \code{"negative binomial"}.}
+\item{distribution}{Distribution of the observed time series. Possible choices are
+\code{"poisson"}, \code{"binomial"}, \code{"gamma"}, and \code{"negative binomial"}.}
 
 \item{phi}{Additional parameter relating to the non-Gaussian distribution.
-For Negative binomial distribution this is the dispersion term, and for other
-distributions this is ignored.}
+For negative binomial distribution this is the dispersion term, for gamma distribution
+this is the shape parameter, and for other distributions this is ignored.}
 
-\item{u}{Constant parameter for non-Gaussian models. For Poisson and negative binomial distribution, this corresponds to the offset
-term. For binomial, this is the number of trials.}
+\item{u}{Constant parameter vector for non-Gaussian models. For Poisson, gamma, and 
+negative binomial distribution, this corresponds to the offset term. For binomial, 
+this is the number of trials.}
 
 \item{beta}{Prior for the regression coefficients.}
 
@@ -80,7 +81,7 @@ model <- bsm_ng(Seatbelts[, "VanKilled"], distribution = "poisson",
   xreg = Seatbelts[, "law"])
 \dontrun{
 set.seed(123)
-mcmc_out <- run_mcmc(model, iter = 5000, nsim = 10)
+mcmc_out <- run_mcmc(model, iter = 5000, particles = 10)
 mcmc_out$acceptance_rate
 theta <- expand_sample(mcmc_out, "theta")
 plot(theta)
@@ -91,5 +92,11 @@ ggplot(as.data.frame(theta[,1:2]), aes(x = sd_level, y = sd_seasonal)) +
   geom_point() + stat_density2d(aes(fill = ..level.., alpha = ..level..),
   geom = "polygon") + scale_fill_continuous(low = "green", high = "blue") +
   guides(alpha = "none")
+  
+# Traceplot using as.data.frame method for MCMC output:
+library("dplyr")
+as.data.frame(mcmc_out) \%>\% 
+  filter(variable == "sd_level") \%>\% 
+  ggplot(aes(y = value, x = iter)) + geom_line()
 }
 }

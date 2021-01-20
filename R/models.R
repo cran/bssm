@@ -246,7 +246,7 @@ ssm_ulg <- function(y, Z, H, T, R, a1, P1, init_theta = numeric(0),
   
   # xreg and beta are need in C++ side in order to combine constructors 
   structure(list(y = as.ts(y), Z = Z, H = H, T = T, R = R, a1 = a1, P1 = P1,
-     D = D, C = C, update_fn = update_fn,
+    D = D, C = C, update_fn = update_fn,
     prior_fn = prior_fn, theta = init_theta,
     xreg = matrix(0,0,0), beta = numeric(0)), class = c("ssm_ulg", "gaussian"))
 }
@@ -324,7 +324,7 @@ ssm_ung <- function(y, Z, T, R, a1, P1, distribution, phi = 1, u = 1,
   
   check_y(y, distribution = distribution)
   n <- length(y)
- 
+  
   if (length(Z) == 1) {
     dim(Z) <- c(1, 1)
     m <- 1
@@ -462,6 +462,13 @@ ssm_ung <- function(y, Z, T, R, a1, P1, distribution, phi = 1, u = 1,
 #' @param state_names Names for the states.
 #' @return Object of class \code{ssm_mlg}.
 #' @export
+#' @examples
+#' 
+#' data("GlobalTemp", package = "KFAS")
+#' model_temp <- ssm_mlg(GlobalTemp, H = matrix(c(0.15,0.05,0, 0.05), 2, 2), 
+#'   R = 0.05, Z = matrix(1, 2, 1), T = 1, P1 = 10)
+#' ts.plot(cbind(model_temp$y, smoother(model_temp)$alphahat),col=1:3)
+#' 
 ssm_mlg <- function(y, Z, H, T, R, a1, P1, init_theta = numeric(0),
   D, C, state_names, update_fn = default_update_fn, prior_fn = default_prior_fn) {
   
@@ -616,7 +623,7 @@ ssm_mng <- function(y, Z, T, R, a1, P1, distribution, phi = 1, u = 1,
       c("poisson", "binomial", "negative binomial", "gamma", "gaussian"))
     check_phi(phi[i])
   }
-
+  
   
   # create Z
   if (dim(Z)[1] != p || !(dim(Z)[3] %in% c(1, NA, n)))
@@ -676,11 +683,10 @@ ssm_mng <- function(y, Z, T, R, a1, P1, distribution, phi = 1, u = 1,
     C <- matrix(0, m, 1)
   }
   
-  
   if (length(u) == 1) {
     u <- matrix(u, n, p)
   }
-  check_u(u)
+  check_u(u) 
   if(!identical(dim(y), dim(u))) stop("Dimensions of 'y' and 'u' do not match. ")
   initial_mode <- y
   for(i in 1:p) {
@@ -963,13 +969,14 @@ bsm_lg <- function(y, sd_y, sd_level, sd_slope, sd_seasonal,
 #' If missing, the seasonal component is omitted from the model.
 #' @param sd_noise Prior for the standard error of the additional noise term.
 #' See \link[=uniform]{priors} for details. If missing, no additional noise term is used.
-#' @param distribution distribution of the observation. Possible choices are
-#' \code{"poisson"}, \code{"binomial"}, \code{"negative binomial"}.
+#' @param distribution Distribution of the observed time series. Possible choices are
+#' \code{"poisson"}, \code{"binomial"}, \code{"gamma"}, and \code{"negative binomial"}.
 #' @param phi Additional parameter relating to the non-Gaussian distribution.
-#' For Negative binomial distribution this is the dispersion term, and for other
-#' distributions this is ignored.
-#' @param u Constant parameter for non-Gaussian models. For Poisson and negative binomial distribution, this corresponds to the offset
-#' term. For binomial, this is the number of trials.
+#' For negative binomial distribution this is the dispersion term, for gamma distribution
+#' this is the shape parameter, and for other distributions this is ignored.
+#' @param u Constant parameter vector for non-Gaussian models. For Poisson, gamma, and 
+#' negative binomial distribution, this corresponds to the offset term. For binomial, 
+#' this is the number of trials.
 #' @param beta Prior for the regression coefficients.
 #' @param xreg Matrix containing covariates.
 #' @param period Length of the seasonal component i.e. the number of
@@ -990,17 +997,23 @@ bsm_lg <- function(y, sd_y, sd_level, sd_slope, sd_seasonal,
 #'   xreg = Seatbelts[, "law"])
 #' \dontrun{
 #' set.seed(123)
-#' mcmc_out <- run_mcmc(model, iter = 5000, nsim = 10)
+#' mcmc_out <- run_mcmc(model, iter = 5000, particles = 10)
 #' mcmc_out$acceptance_rate
 #' theta <- expand_sample(mcmc_out, "theta")
 #' plot(theta)
 #' summary(theta)
-#'
+#' 
 #' library("ggplot2")
 #' ggplot(as.data.frame(theta[,1:2]), aes(x = sd_level, y = sd_seasonal)) +
 #'   geom_point() + stat_density2d(aes(fill = ..level.., alpha = ..level..),
 #'   geom = "polygon") + scale_fill_continuous(low = "green", high = "blue") +
 #'   guides(alpha = "none")
+#'   
+#' # Traceplot using as.data.frame method for MCMC output:
+#' library("dplyr")
+#' as.data.frame(mcmc_out) %>% 
+#'   filter(variable == "sd_level") %>% 
+#'   ggplot(aes(y = value, x = iter)) + geom_line()
 #' }
 bsm_ng <- function(y, sd_level, sd_slope, sd_seasonal, sd_noise,
   distribution, phi, u = 1, beta, xreg = NULL, period = frequency(y), a1, P1,
@@ -1175,8 +1188,8 @@ bsm_ng <- function(y, sd_level, sd_slope, sd_seasonal, sd_noise,
     R[m, max(1, ncol(R) - 1)] <- sd_noise$init
   }
   
-  use_phi <- distribution %in% c("negative binomial")
   phi_est <- FALSE
+  use_phi <- distribution %in% c("negative binomial", "gamma")
   if (use_phi) {
     if (is_prior(phi)) {
       check_phi(phi$init, distribution)
@@ -1188,13 +1201,11 @@ bsm_ng <- function(y, sd_level, sd_slope, sd_seasonal, sd_noise,
     phi <- 1
   }
   
-  use_u <- distribution %in% c("poisson", "binomial", "negative binomial")
-  if (use_u) {
-    check_u(u)
-    if (length(u) != n) {
-      u <- rep(u, length.out = n)
-    }
+  check_u(u)
+  if (length(u) != n) {
+    u <- rep(u, length.out = n)
   }
+  
   
   initial_mode <- matrix(init_mode(y, u, distribution), ncol = 1)
   
@@ -1265,7 +1276,7 @@ bsm_ng <- function(y, sd_level, sd_slope, sd_seasonal, sd_noise,
 #' obj <- function(pars) {
 #'    -logLik(svm(exchange, rho = uniform(pars[1],-0.999,0.999),
 #'    sd_ar = halfnormal(pars[2],sd=5),
-#'    sigma = halfnormal(pars[3],sd=2)), nsim = 0)
+#'    sigma = halfnormal(pars[3],sd=2)), particles = 0)
 #' }
 #' opt <- nlminb(c(0.98, 0.15, 0.6), obj, lower = c(-0.999, 1e-4, 1e-4), upper = c(0.999,10,10))
 #' pars <- opt$par
@@ -1333,13 +1344,14 @@ svm <- function(y, rho, sd_ar, sigma, mu) {
 #' @param sigma Prior for the standard deviation of noise of the AR-process.
 #' @param beta Prior for the regression coefficients.
 #' @param xreg Matrix containing covariates.
-#' @param distribution distribution of the observation. Possible choices are
-#' \code{"poisson"}, \code{"binomial"} and \code{"negative binomial"}.
+#' @param distribution Distribution of the observed time series. Possible choices are
+#' \code{"poisson"}, \code{"binomial"}, \code{"gamma"}, and \code{"negative binomial"}.
 #' @param phi Additional parameter relating to the non-Gaussian distribution.
-#' For Negative binomial distribution this is the dispersion term, and for other
-#' distributions this is ignored.
-#' @param u Constant parameter for non-Gaussian models. For Poisson and negative binomial distribution, this corresponds to the offset
-#' term. For binomial, this is the number of trials.
+#' For negative binomial distribution this is the dispersion term, for gamma distribution
+#' this is the shape parameter, and for other distributions this is ignored.
+#' @param u Constant parameter vector for non-Gaussian models. For Poisson, gamma, and 
+#' negative binomial distribution, this corresponds to the offset term. For binomial, 
+#' this is the number of trials.
 #' @return Object of class \code{ar1_ng}.
 #' @export
 #' @rdname ar1_ng
@@ -1415,13 +1427,11 @@ ar1_ng <- function(y, rho, sigma, mu, distribution, phi, u = 1, beta, xreg = NUL
     phi <- 1
   }
   
-  use_u <- distribution %in% c("poisson", "binomial", "negative binomial")
-  if (use_u) {
-    check_u(u)
-    if (length(u) != n) {
-      u <- rep(u, length.out = n)
-    }
+  check_u(u)
+  if (length(u) != n) {
+    u <- rep(u, length.out = n)
   }
+
   initial_mode <- matrix(init_mode(y, u, distribution), ncol = 1)
   P1 <- matrix(sigma$init^2 / (1 - rho$init^2))
   
@@ -1474,6 +1484,12 @@ ar1_ng <- function(y, rho, sigma, mu, distribution, phi, u = 1, beta, xreg = NUL
 #' @return Object of class \code{ar1_lg}.
 #' @export
 #' @rdname ar1_lg
+#' @examples 
+#' model <- ar1_lg(BJsales, rho = uniform(0.5,-1,1), 
+#'   sigma = halfnormal(1, 10), mu = normal(200, 200, 100), 
+#'   sd_y = halfnormal(1, 10))
+#' out <- run_mcmc(model, iter = 2e4)
+#' summary(out, return_se = TRUE)
 ar1_lg <- function(y, rho, sigma, mu, sd_y, beta, xreg = NULL) {
   
   check_y(y)
@@ -1590,6 +1606,7 @@ ar1_lg <- function(y, rho, sigma, mu, sd_y, beta, xreg = NULL) {
 #' Compared to other models, these general models need a bit more effort from
 #' the user, as you must provide the several small C++ snippets which define the
 #' model structure. See examples in the vignette.
+#' 
 #' @param y Observations as multivariate time series (or matrix) of length \eqn{n}.
 #' @param Z,H,T,R  An external pointers for the C++ functions which
 #' define the corresponding model functions.
@@ -1642,7 +1659,7 @@ ssm_nlg <- function(y, Z, H, T, R, Z_gn, T_gn, a1, P1, theta,
 #'
 #' As in case of \code{ssm_nlg} models, these general models need a bit more effort from
 #' the user, as you must provide the several small C++ snippets which define the
-#' model structure. See SDE vignette for an example.
+#' model structure. See vignettes for an example.
 #'
 #' @param y Observations as univariate time series (or vector) of length \eqn{n}.
 #' @param drift,diffusion,ddiffusion An external pointers for the C++ functions which
