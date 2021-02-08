@@ -1,3 +1,22 @@
+bssm 1.1.2 (Release date: 2021-02-08)
+==============
+   * Changed the definition of D in ssm_ulg and ssm_ung, functions now accept D as scalar or vector as 
+     was originally intended.
+   * Fixed a segfault issue with parallel state sampling in general ssm_ulg/mlg/ung/mng models
+     caused by calls to R function inside parallel region.
+   * Fixed a bug from version 1.0.0 in IS1 type sampling which actually lead to IS2 type sampling.
+   * Fixed out-of-bounds error in IS3 sampling.
+   * Fixed weight computations for multivariate nonlinear models in case of psi-APF 
+     in some border cases with non-standard H.
+   * Removed Armadillo bound checks for efficiency gains.
+   
+bssm 1.1.1 (Release date: 2021-01-22)
+==============
+   
+   * Added missing scaling for Gamma distribution in importance sampling weights for added numerical robustness.
+   * Fixed sequential importance sampling for multivariate non-gaussian models.
+   * Fixed simulation smoother for multivariate Gaussian models.
+
 bssm 1.1.0 (Release date: 2021-01-19)
 ==============
    

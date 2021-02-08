@@ -96,7 +96,7 @@ ggplot(r_summary, aes(x = time, y = mean)) +
   theme_bw()
 
 p_summary$cut <- cut(p_summary$time, c(0, 100, 200, 301))
-ggplot(p_summary, aes(x = time, y = mean,)) + 
+ggplot(p_summary, aes(x = time, y = mean)) + 
   geom_point(data = data.frame(
     mean = y, time = seq_along(y),
     cut = cut(seq_along(y), c(0, 100, 200, 301))), alpha = 0.1) +
@@ -104,4 +104,8 @@ ggplot(p_summary, aes(x = time, y = mean,)) +
     colour = NA, alpha = 0.25) +
   geom_line(aes(colour = method)) +
   theme_bw() + facet_wrap(~ cut, scales = "free")
+
+## -----------------------------------------------------------------------------
+mcmc_res$time
+mcmc_ekf_res$time
 

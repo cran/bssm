@@ -22,6 +22,8 @@
 #include "model_ssm_nlg.h"
 #include "model_ssm_sde.h"
 
+#include "parset_lg.h"
+
 mcmc::mcmc(
   const unsigned int iter, 
   const unsigned int burnin,
@@ -54,37 +56,85 @@ void mcmc::trim_storage() {
     alpha_storage.resize(alpha_storage.n_rows, alpha_storage.n_cols, n_stored);
 }
 
+// for circumventing calls to R during parallel runs
+
+void mcmc::state_posterior2(ssm_ulg model, const unsigned int n_threads) {
+  
+  
+#ifdef _OPENMP
+  
+  parset_ulg pars(model, theta_storage);
+  
+#pragma omp parallel num_threads(n_threads) default(shared) firstprivate(model)
+{
+  model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
+#pragma omp for schedule(static)
+  for (unsigned int i = 0; i < n_stored; i++) {
+    pars.update(model, i);
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
+  }
+}
+  
+#else
+  for (unsigned int i = 0; i < n_stored; i++) {
+    model.update_model(theta_storage.col(i));
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
+  }
+#endif
+}
+
+void mcmc::state_posterior2(ssm_mlg model, const unsigned int n_threads) {
+  
+  
+#ifdef _OPENMP
+  parset_mlg pars(model, theta_storage);
+  
+#pragma omp parallel num_threads(n_threads) default(shared) firstprivate(model)
+{
+  model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
+#pragma omp for schedule(static)
+  for (unsigned int i = 0; i < n_stored; i++) {
+    pars.update(model, i);
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
+  }
+}
+  
+#else
+  for (unsigned int i = 0; i < n_stored; i++) {
+    model.update_model(theta_storage.col(i));
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
+  }
+#endif
+}
+
 template void mcmc::state_posterior(ssm_ulg model, const unsigned int n_threads);
+template void mcmc::state_posterior(ssm_mlg model, const unsigned int n_threads);
 template void mcmc::state_posterior(bsm_lg model, const unsigned int n_threads);
 template void mcmc::state_posterior(ar1_lg model, const unsigned int n_threads);
-template void mcmc::state_posterior(ssm_mlg model, const unsigned int n_threads);
 
 template <class T>
 void mcmc::state_posterior(T model, const unsigned int n_threads) {
   
-  if(n_threads > 1) {
+  
 #ifdef _OPENMP
+  
 #pragma omp parallel num_threads(n_threads) default(shared) firstprivate(model)
 {
   model.engine = sitmo::prng_engine(omp_get_thread_num() + 1);
-  unsigned int thread_size = unsigned(std::floor(double(n_stored) / n_threads));
-  unsigned int start = omp_get_thread_num() * thread_size;
-  unsigned int end = (omp_get_thread_num() + 1) * thread_size - 1;
-  if(omp_get_thread_num() == static_cast<int>(n_threads - 1)) {
-    end = n_stored - 1;
-  }
   
-  arma::mat theta_piece = theta_storage(arma::span::all, arma::span(start, end));
-  arma::cube alpha_piece = alpha_storage.slices(start, end);
-  state_sampler(model, theta_piece, alpha_piece);
-  alpha_storage.slices(start, end) = alpha_piece;
+#pragma omp for schedule(static)
+  for (unsigned int i = 0; i < n_stored; i++) {
+    model.update_model(theta_storage.col(i));
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
+  }
 }
 #else
-    state_sampler(model, theta_storage, alpha_storage);
-#endif
-  } else {
-    state_sampler(model, theta_storage, alpha_storage);
+  for (unsigned int i = 0; i < n_stored; i++) {
+    model.update_model(theta_storage.col(i));
+    alpha_storage.slice(i) = model.simulate_states(1).slice(0).t();
   }
+#endif
+
 }
 
 
@@ -107,7 +157,7 @@ void mcmc::state_summary(T model) {
   for (unsigned int i = 1; i < n_stored; i++) {
     model.update_model(theta_storage.col(i));
     model.smoother(alphahat_i, Vt_i);
-
+    
     arma::mat diff = alphahat_i - alphahat;
     double tmp = count_storage(i) + sum_w;
     alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
@@ -121,21 +171,6 @@ void mcmc::state_summary(T model) {
   
   Vt += Valpha / sum_w; // Var[E(alpha)] + E[Var(alpha)]
 }
-
-template void mcmc::state_sampler(ssm_ulg model, const arma::mat& theta, arma::cube& alpha);
-template void mcmc::state_sampler(bsm_lg model, const arma::mat& theta, arma::cube& alpha);
-template void mcmc::state_sampler(ar1_lg model, const arma::mat& theta, arma::cube& alpha);
-template void mcmc::state_sampler(ssm_mlg model, const arma::mat& theta, arma::cube& alpha);
-template <class T>
-
-void mcmc::state_sampler(T model, const arma::mat& theta, arma::cube& alpha) {
-  for (unsigned int i = 0; i < theta.n_cols; i++) {
-    //arma::vec theta_i = theta.col(i);
-    model.update_model(theta.col(i));
-    alpha.slice(i) = model.simulate_states(1).slice(0).t();
-  }
-}
-
 
 
 // run MCMC for linear-Gaussian state space model
@@ -165,7 +200,7 @@ void mcmc::mcmc_gaussian(T model, const bool end_ram) {
   double acceptance_prob = 0.0;
   bool new_value = true;
   unsigned int n_values = 0;
-
+  
   for (unsigned int i = 1; i <= iter; i++) {
     
     if (i % 16 == 0) {
@@ -227,7 +262,7 @@ void mcmc::mcmc_gaussian(T model, const bool end_ram) {
     }
     
   }
-  
+  if(n_stored == 0) Rcpp::stop("No proposals were accepted in MCMC run. Check your model.");
   trim_storage();
   acceptance_rate /= (iter - burnin);
   
@@ -294,7 +329,7 @@ void mcmc::pm_mcmc(
   
   // compute the log-likelihood (unbiased and approximate)
   arma::vec ll = model.log_likelihood(method, nsim, alpha, weights, indices);
-
+  
   if (!std::isfinite(ll(0)))
     Rcpp::stop("Initial log-likelihood is not finite.");
   
@@ -307,7 +342,7 @@ void mcmc::pm_mcmc(
       output_type == 1, method, alpha, weights.col(n), indices,
       sampled_alpha, alphahat_i, Vt_i, model.engine);
   }
-
+  
   double acceptance_prob = 0.0;
   bool new_value = true;
   unsigned int n_values = 0;
@@ -329,7 +364,7 @@ void mcmc::pm_mcmc(
     arma::vec theta_prop = theta + S * u;
     // compute prior
     double logprior_prop = model.log_prior_pdf(theta_prop);
-
+    
     if (logprior_prop > -std::numeric_limits<double>::infinity() && !std::isnan(logprior_prop)) {
       
       // update parameters
@@ -337,7 +372,7 @@ void mcmc::pm_mcmc(
       
       // compute the log-likelihood (unbiased and approximate)
       arma::vec ll_prop = model.log_likelihood(method, nsim, alpha, weights, indices);
-
+      
       //compute the acceptance probability for RAM using the approximate ll
       acceptance_prob = std::min(1.0, std::exp(
         ll_prop(1) - ll(1) +
@@ -399,6 +434,8 @@ void mcmc::pm_mcmc(
   if (output_type == 2) {
     Vt += Valphahat / (iter - burnin); // Var[E(alpha)] + E[Var(alpha)]
   }
+  
+  if(n_stored == 0) Rcpp::stop("No proposals were accepted in MCMC run. Check your model.");
   trim_storage();
   acceptance_rate /= (iter - burnin);
 }
@@ -634,7 +671,7 @@ void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
       // update parameters
       model.update_model(theta_prop);
       double ll_c_prop = model.bsf_filter(nsim, model.L_c, alpha, weights, indices);
-    
+      
       // initial acceptance probability, also used in RAM
       acceptance_prob = std::min(1.0, std::exp(ll_c_prop - ll_c +
         logprior_prop - logprior));
@@ -700,6 +737,8 @@ void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
   if (output_type == 2) {
     Vt += Valphahat / (iter - burnin); // Var[E(alpha)] + E[Var(alpha)]
   }
+  
+  if(n_stored == 0) Rcpp::stop("No proposals were accepted in MCMC run. Check your model.");
   trim_storage();
   acceptance_rate /= (iter - burnin);
 }

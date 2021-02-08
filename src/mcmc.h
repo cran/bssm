@@ -3,6 +3,9 @@
 
 #include "bssm.h"
 
+class ssm_ulg;
+class ssm_mlg;
+
 class mcmc {
   
 protected:
@@ -16,10 +19,10 @@ protected:
   const unsigned int n_par;
   const double target_acceptance;
   const double gamma;
-  unsigned int n_stored;
   
 public:
   
+  unsigned int n_stored;
   // constructor
   mcmc(const unsigned int iter, const unsigned int burnin, 
     const unsigned int thin, const unsigned int n, const unsigned int m,
@@ -29,11 +32,14 @@ public:
   // sample states given theta
   template <class T>
   void state_posterior(T model, const unsigned int n_threads);
+ 
+ // for circumventing R calls within OpenMP
+  void state_posterior2(ssm_ulg model, const unsigned int n_threads);
+  void state_posterior2(ssm_mlg model, const unsigned int n_threads);
+  
   template <class T>
   void state_summary(T model);
-  template <class T>
-  void state_sampler(T model, const arma::mat& theta, arma::cube& alpha);
-
+  
   // gaussian mcmc
   template<class T>
   void mcmc_gaussian(T model, const bool end_ram);
