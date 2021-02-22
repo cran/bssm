@@ -43,6 +43,7 @@ double nongaussian_loglik(const Rcpp::List model_,
   const unsigned int seed, const int model_type) {
   
   arma::vec loglik(2);
+  loglik.fill(-std::numeric_limits<double>::infinity());
 
   switch (model_type) {
   case 0: {

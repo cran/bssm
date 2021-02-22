@@ -34,7 +34,10 @@
 (default, returns posterior samples of states alpha and hyperparameters theta), 
 \code{"theta"} (for marginal posterior of theta), 
 or \code{"summary"} (return the mean and variance estimates of the states 
-and posterior samples of theta). If \code{particles = 0}, this is argument ignored and set to \code{"theta"}.}
+and posterior samples of theta). In case of \code{"summary"}, means and 
+covariances are computed using the full output of particle filter 
+instead of sampling one of these as in case of \code{output_type = "full"}. 
+If \code{particles = 0}, this is argument ignored and set to \code{"theta"}.}
 
 \item{mcmc_type}{What MCMC algorithm to use? Possible choices are
 \code{"pm"} for pseudo-marginal MCMC,
@@ -60,7 +63,9 @@ of the summary statistics in case of pseudo-marginal methods.}
 \item{gamma}{Tuning parameter for the adaptation of RAM algorithm. Must be
 between 0 and 1 (not checked).}
 
-\item{target_acceptance}{Target acceptance ratio for RAM. Defaults to 0.234.}
+\item{target_acceptance}{Target acceptance ratio for RAM. Defaults to 0.234.
+For DA-MCMC, this corresponds to first stage acceptance rate, i.e., the total acceptance 
+rate will be smaller.}
 
 \item{S}{Initial value for the lower triangular matrix of RAM
 algorithm, so that the covariance matrix of the Gaussian proposal

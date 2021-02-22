@@ -38,10 +38,10 @@ mcmc::mcmc(
   n_samples(std::floor(double(iter - burnin) / double(thin))),
   n_par(S.n_rows),
   target_acceptance(target_acceptance), gamma(gamma), n_stored(0),
-  posterior_storage(arma::vec(n_samples)),
-  theta_storage(arma::mat(n_par, n_samples)),
+  posterior_storage(arma::vec(n_samples, arma::fill::zeros)),
+  theta_storage(arma::mat(n_par, n_samples, arma::fill::zeros)),
   count_storage(arma::uvec(n_samples, arma::fill::zeros)),
-  alpha_storage(arma::cube((output_type == 1) * n + 1, m, (output_type == 1) * n_samples)), 
+  alpha_storage(arma::cube((output_type == 1) * n + 1, m, (output_type == 1) * n_samples, arma::fill::zeros)), 
   alphahat(arma::mat(m, (output_type == 2) * n + 1, arma::fill::zeros)), 
   Vt(arma::cube(m, m, (output_type == 2) * n + 1, arma::fill::zeros)), S(S),
   acceptance_rate(0.0), output_type(output_type) {
@@ -148,27 +148,26 @@ void mcmc::state_summary(T model) {
   
   arma::cube Valpha(model.m, model.m, model.n + 1, arma::fill::zeros);
   
-  model.update_model(theta_storage.col(0));
-  model.smoother(alphahat, Vt);
+  double sum_w = 0;
+  arma::mat alphahat_i(model.m, model.n + 1);
+  arma::cube Vt_i(model.m, model.m, model.n + 1);
   
-  double sum_w = count_storage(0);
-  arma::mat alphahat_i = alphahat;
-  arma::cube Vt_i = Vt;
-  for (unsigned int i = 1; i < n_stored; i++) {
+  for (unsigned int i = 0; i < n_stored; i++) {
+    
     model.update_model(theta_storage.col(i));
     model.smoother(alphahat_i, Vt_i);
     
+    sum_w += count_storage(i);
     arma::mat diff = alphahat_i - alphahat;
-    double tmp = count_storage(i) + sum_w;
-    alphahat = (alphahat * sum_w + alphahat_i * count_storage(i)) / tmp;
-    
+    alphahat += count_storage(i) / sum_w * diff; // update E(alpha)
+    arma::mat diff2 = (alphahat_i - alphahat).t();
     for (unsigned int t = 0; t < model.n + 1; t++) {
-      Valpha.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      // update Var(alpha)
+      Valpha.slice(t) += count_storage(i) * diff.col(t) * diff2.row(t);
     }
-    Vt = (Vt * sum_w + Vt_i * count_storage(i)) / tmp;
-    sum_w = tmp;
+    // update Var(E(alpha))
+    Vt += count_storage(i) / sum_w * (Vt_i - Vt);
   }
-  
   Vt += Valpha / sum_w; // Var[E(alpha)] + E[Var(alpha)]
 }
 
@@ -299,10 +298,6 @@ template void mcmc::pm_mcmc(ssm_mng model,
   const unsigned int nsim,
   const bool end_ram);
 
-template void mcmc::pm_mcmc(ssm_sde model,
-  const unsigned int method,
-  const unsigned int nsim,
-  const bool end_ram);
 
 template<class T>
 void mcmc::pm_mcmc(
@@ -607,8 +602,141 @@ void mcmc::da_mcmc(T model,
   acceptance_rate /= (iter - burnin);
 }
 
-template <>
-void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
+
+void mcmc::pm_mcmc(
+    ssm_sde model,
+    const unsigned int nsim,
+    const bool end_ram) {
+  
+  unsigned int m = model.m;
+  unsigned int n = model.n;
+  
+  // get the current values of theta
+  arma::vec theta = model.theta;
+  model.update_model(theta); // just in case
+  // compute the log[p(theta)]
+  double logprior = model.log_prior_pdf(theta);
+  if (!arma::is_finite(logprior)) {
+    Rcpp::stop("Initial prior probability is not finite.");
+  }
+  arma::cube alpha(m, n + 1, nsim);
+  arma::mat weights(nsim, n + 1);
+  // reduce the space in case of SPDK (does not use indices)
+  arma::umat indices(nsim, n  + 1);
+  
+  // compute the log-likelihood
+  double ll = model.bsf_filter(nsim, model.L_f, alpha, weights, indices);
+  
+  if (!std::isfinite(ll))
+    Rcpp::stop("Initial log-likelihood is not finite.");
+  
+  arma::mat alphahat_i(m, n + 1);
+  arma::cube Vt_i(m, m, n + 1);
+  arma::cube Valphahat(m, m, n + 1, arma::fill::zeros);
+  arma::mat sampled_alpha(m, n + 1);
+  if (output_type != 3) {
+    sample_or_summarise(
+      output_type == 1, 1, alpha, weights.col(n), indices,
+      sampled_alpha, alphahat_i, Vt_i, model.engine);
+  }
+  
+  double acceptance_prob = 0.0;
+  bool new_value = true;
+  unsigned int n_values = 0;
+  std::normal_distribution<> normal(0.0, 1.0);
+  std::uniform_real_distribution<> unif(0.0, 1.0);
+  for (unsigned int i = 1; i <= iter; i++) {
+    
+    if (i % 16 == 0) {
+      Rcpp::checkUserInterrupt();
+    }
+    
+    // sample from standard normal distribution
+    arma::vec u(n_par);
+    for(unsigned int j = 0; j < n_par; j++) {
+      u(j) = normal(model.engine);
+    }
+    
+    // propose new theta
+    arma::vec theta_prop = theta + S * u;
+    // compute prior
+    double logprior_prop = model.log_prior_pdf(theta_prop);
+    
+    if (logprior_prop > -std::numeric_limits<double>::infinity() && !std::isnan(logprior_prop)) {
+      
+      // update parameters
+      model.update_model(theta_prop);
+      
+      // compute the log-likelihood (unbiased and approximate)
+      double ll_prop =  model.bsf_filter(nsim, model.L_f, alpha, weights, indices);
+      
+      //compute the acceptance probability for RAM
+      acceptance_prob = std::min(1.0, std::exp(
+        ll_prop - ll + logprior_prop - logprior));
+      
+      //accept
+      double log_alpha = ll_prop - ll + logprior_prop - logprior;
+      
+      //accept
+      if (log(unif(model.engine)) < log_alpha) {
+        if (i > burnin) {
+          acceptance_rate++;
+          n_values++;
+        }
+        if (output_type != 3) {
+          sample_or_summarise(
+            output_type == 1, 1, alpha, weights.col(n), indices,
+            sampled_alpha, alphahat_i, Vt_i, model.engine);
+        }
+        ll = ll_prop;
+        logprior = logprior_prop;
+        theta = theta_prop;
+        new_value = true;
+        
+      }
+    } else acceptance_prob = 0.0;
+    
+    // note: thinning does not affect this
+    if (i > burnin && output_type == 2) {
+      arma::mat diff = alphahat_i - alphahat;
+      alphahat = (alphahat * (i - burnin - 1) + alphahat_i) / (i - burnin);
+      Vt = (Vt * (i - burnin - 1) + Vt_i) / (i - burnin);
+      for (unsigned int t = 0; t < model.n + 1; t++) {
+        Valphahat.slice(t) += diff.col(t) * (alphahat_i.col(t) - alphahat.col(t)).t();
+      }
+    }
+    
+    if (i > burnin && n_values % thin == 0) {
+      //new block
+      if (new_value) {
+        posterior_storage(n_stored) = logprior + ll;
+        theta_storage.col(n_stored) = theta;
+        count_storage(n_stored) = 1;
+        if (output_type == 1) {
+          alpha_storage.slice(n_stored) = sampled_alpha.t();
+        }
+        n_stored++;
+        new_value = false;
+      } else {
+        count_storage(n_stored - 1)++;
+      }
+    }
+    
+    if (!end_ram || i <= burnin) {
+      ramcmc::adapt_S(S, u, acceptance_prob, target_acceptance, i, gamma);
+    }
+  }
+  if (output_type == 2) {
+    Vt += Valphahat / (iter - burnin); // Var[E(alpha)] + E[Var(alpha)]
+  }
+  
+  if(n_stored == 0) Rcpp::stop("No proposals were accepted in MCMC run. Check your model.");
+  trim_storage();
+  acceptance_rate /= (iter - burnin);
+}
+
+// DA-MCMC for SDE models
+void mcmc::da_mcmc(ssm_sde model, 
   const unsigned int nsim, const bool end_ram){
   
   // get the current values of theta
@@ -629,7 +757,7 @@ void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
   
   double ll_c = model.bsf_filter(nsim, model.L_c, alpha, weights, indices);
   double ll_f = model.bsf_filter(nsim, model.L_f, alpha, weights, indices);
-  
+
   if (!std::isfinite(ll_f))
     Rcpp::stop("Initial log-likelihood is not finite.");
   
@@ -640,7 +768,7 @@ void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
   
   if (output_type != 3) {
     sample_or_summarise(
-      output_type == 1, method, alpha, weights.col(n), indices,
+      output_type == 1, 1, alpha, weights.col(n), indices,
       sampled_alpha, alphahat_i, Vt_i, model.engine);
   }
   
@@ -691,7 +819,7 @@ void mcmc::da_mcmc<ssm_sde>(ssm_sde model, const unsigned int method,
           }
           if (output_type != 3) {
             sample_or_summarise(
-              output_type == 1, method, alpha, weights.col(n), indices,
+              output_type == 1, 1, alpha, weights.col(n), indices,
               sampled_alpha, alphahat_i, Vt_i, model.engine);
           }
           ll_f = ll_f_prop;

@@ -8,21 +8,6 @@ prior <- halfnormal(1, 10)
 bsm_model <- bsm_lg(y = nhtemp, sd_y = prior, sd_level = prior,
   sd_slope = prior)
 
-## -----------------------------------------------------------------------------
-set.seed(1)
-suppressMessages(library("sde"))
-x <- sde.sim(t0 = 0, T = 100, X0 = 1, N = 100,
-  drift = expression(0.5 * (2 - x)),
-  sigma = expression(1),
-  sigma.x = expression(0))
-y <- rpois(100, exp(x[-1]))
-
-## ---- eval = FALSE------------------------------------------------------------
-#  Rcpp::sourceCpp("ssm_sde_template.cpp")
-#  pntrs <- create_xptrs()
-#  sde_model <- ssm_sde(y, pntrs$drift, pntrs$diffusion,
-#    pntrs$ddiffusion, pntrs$obs_density, pntrs$prior, c(0.5, 2, 1), 1, FALSE)
-
 ## ----mcmc_bsm-----------------------------------------------------------------
 prior <- halfnormal(0.1, 1)
 UKgas_model <- bsm_lg(log10(UKgas), sd_y = prior, sd_level = prior,

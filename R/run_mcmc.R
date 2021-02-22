@@ -38,7 +38,7 @@ run_mcmc <- function(model, iter, ...) {
 #' Defaults to 1.
 #' @param gamma Tuning parameter for the adaptation of RAM algorithm. Must be
 #' between 0 and 1 (not checked).
-#' @param target_acceptance Target acceptance ratio for RAM. Defaults to 0.234.
+#' @param target_acceptance Target acceptance rate for MCMC. Defaults to 0.234.
 #' @param S Initial value for the lower triangular matrix of RAM
 #' algorithm, so that the covariance matrix of the Gaussian proposal
 #' distribution is \eqn{SS'}. Note that for some parameters 
@@ -148,7 +148,9 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
 #' (default, returns posterior samples of states alpha and hyperparameters theta), 
 #' \code{"theta"} (for marginal posterior of theta), 
 #' or \code{"summary"} (return the mean and variance estimates of the states 
-#' and posterior samples of theta).
+#' and posterior samples of theta).  In case of \code{"summary"}, means and 
+#' covariances are computed using the full output of particle filter 
+#' instead of sampling one of these as in case of \code{output_type = "full"}.
 #' @param mcmc_type What MCMC algorithm to use? Possible choices are
 #' \code{"pm"} for pseudo-marginal MCMC,
 #' \code{"da"} for delayed acceptance version of PMCMC , 
@@ -171,7 +173,9 @@ run_mcmc.gaussian <- function(model, iter, output_type = "full",
 #' of the summary statistics in case of pseudo-marginal methods.
 #' @param gamma Tuning parameter for the adaptation of RAM algorithm. Must be
 #' between 0 and 1 (not checked).
-#' @param target_acceptance Target acceptance ratio for RAM. Defaults to 0.234. 
+#' @param target_acceptance Target acceptance rate for MCMC. Defaults to 0.234. 
+#' For DA-MCMC, this corresponds to first stage acceptance rate, i.e., the total acceptance 
+#' rate will be smaller. 
 #' @param S Initial value for the lower triangular matrix of RAM
 #' algorithm, so that the covariance matrix of the Gaussian proposal
 #' distribution is \eqn{SS'}. Note that for some parameters 
@@ -407,7 +411,9 @@ run_mcmc.nongaussian <- function(model, iter, particles, output_type = "full",
 #' (default, returns posterior samples of states alpha and hyperparameters theta), 
 #' \code{"theta"} (for marginal posterior of theta), 
 #' or \code{"summary"} (return the mean and variance estimates of the states 
-#' and posterior samples of theta). 
+#' and posterior samples of theta).  In case of \code{"summary"}, means and 
+#' covariances are computed using the full output of particle filter 
+#' instead of sampling one of these as in case of \code{output_type = "full"}.
 #' @param mcmc_type What MCMC algorithm to use? Possible choices are
 #' \code{"pm"} for pseudo-marginal MCMC,
 #' \code{"da"} for delayed acceptance version of pseudo-marginal MCMC, 
@@ -431,6 +437,8 @@ run_mcmc.nongaussian <- function(model, iter, particles, output_type = "full",
 #' @param gamma Tuning parameter for the adaptation of RAM algorithm. Must be
 #' between 0 and 1 (not checked).
 #' @param target_acceptance Target acceptance ratio for RAM. Defaults to 0.234.
+#' For DA-MCMC, this corresponds to first stage acceptance rate, i.e., the total acceptance 
+#' rate will be smaller. 
 #' @param S Initial value for the lower triangular matrix of RAM
 #' algorithm, so that the covariance matrix of the Gaussian proposal
 #' distribution is \eqn{SS'}. Note that for some parameters 
@@ -583,7 +591,10 @@ run_mcmc.ssm_nlg <-  function(model, iter, particles, output_type = "full",
 #' (default, returns posterior samples of states alpha and hyperparameters theta), 
 #' \code{"theta"} (for marginal posterior of theta), 
 #' or \code{"summary"} (return the mean and variance estimates of the states 
-#' and posterior samples of theta). If \code{particles = 0}, this is argument ignored and set to \code{"theta"}.
+#' and posterior samples of theta). In case of \code{"summary"}, means and 
+#' covariances are computed using the full output of particle filter 
+#' instead of sampling one of these as in case of \code{output_type = "full"}. 
+#' If \code{particles = 0}, this is argument ignored and set to \code{"theta"}.
 #' @param mcmc_type What MCMC algorithm to use? Possible choices are
 #' \code{"pm"} for pseudo-marginal MCMC,
 #' \code{"da"} for delayed acceptance version of pseudo-marginal MCMC, 
@@ -602,6 +613,8 @@ run_mcmc.ssm_nlg <-  function(model, iter, particles, output_type = "full",
 #' @param gamma Tuning parameter for the adaptation of RAM algorithm. Must be
 #' between 0 and 1 (not checked).
 #' @param target_acceptance Target acceptance ratio for RAM. Defaults to 0.234.
+#' For DA-MCMC, this corresponds to first stage acceptance rate, i.e., the total acceptance 
+#' rate will be smaller. 
 #' @param S Initial value for the lower triangular matrix of RAM
 #' algorithm, so that the covariance matrix of the Gaussian proposal
 #' distribution is \eqn{SS'}. Note that for some parameters 

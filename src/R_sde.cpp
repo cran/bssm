@@ -49,11 +49,13 @@ Rcpp::List bsf_sde(const arma::vec& y, const double x0,
      L, L, seed);
 
   unsigned int n = model.n;
-  arma::cube alpha(1, n + 1, nsim);
-  arma::mat weights(nsim, n + 1);
-  arma::umat indices(nsim, n);
+  arma::cube alpha(1, n + 1, nsim, arma::fill::zeros);
+  arma::mat weights(nsim, n + 1, arma::fill::zeros);
+  arma::umat indices(nsim, n, arma::fill::zeros);
   double loglik = model.bsf_filter(nsim, L, alpha, weights, indices);
-
+  if (!std::isfinite(loglik)) 
+    Rcpp::warning("Particle filtering stopped prematurely due to nonfinite log-likelihood.");
+  
   arma::mat at(1, n + 1);
   arma::mat att(1, n + 1);
   arma::cube Pt(1, 1, n + 1);
@@ -87,16 +89,18 @@ Rcpp::List bsf_smoother_sde(const arma::vec& y, const double x0,
      L, L, seed);
 
   unsigned int n = model.n;
-  arma::cube alpha(1, n + 1, nsim);
-  arma::mat weights(nsim, n + 1);
-  arma::umat indices(nsim, n);
+  arma::cube alpha(1, n + 1, nsim, arma::fill::zeros);
+  arma::mat weights(nsim, n + 1, arma::fill::zeros);
+  arma::umat indices(nsim, n, arma::fill::zeros);
   double loglik = model.bsf_filter(nsim, L, alpha, weights, indices);
-
+  if (!std::isfinite(loglik)) 
+    Rcpp::warning("Particle filtering stopped prematurely due to nonfinite log-likelihood.");
+  
   arma::mat alphahat(1, n + 1);
   arma::cube Vt(1, 1, n + 1);
 
   filter_smoother(alpha, indices);
-  weighted_summary(alpha, alphahat, Vt, weights.col(n));
+  summary(alpha, alphahat, Vt); // weights are uniform due to extra time point
 
   arma::inplace_trans(alphahat);
 
@@ -130,7 +134,7 @@ Rcpp::List sde_pm_mcmc(const arma::vec& y, const double x0,
   mcmc mcmc_run(iter, burnin,
     thin, model.n, 1, target_acceptance, gamma, S, type);
 
-  mcmc_run.pm_mcmc(model, 1, end_ram, nsim);
+  mcmc_run.pm_mcmc(model, nsim, end_ram);
 
   switch (type) {
   case 1: {
@@ -184,7 +188,7 @@ Rcpp::List sde_da_mcmc(const arma::vec& y, const double x0,
   mcmc mcmc_run(iter, burnin,
     thin, model.n, 1, target_acceptance, gamma, S, type);
 
-  mcmc_run.da_mcmc(model, 1, end_ram, nsim);
+  mcmc_run.da_mcmc(model, nsim, end_ram);
 
   switch (type) {
   case 1: {

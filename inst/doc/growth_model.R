@@ -8,18 +8,19 @@ set.seed(1)
 p1 <- 50 # population size at t = 1
 K <- 500 # carrying capacity
 H <- 1 # standard deviation of obs noise
-
+R_1 <- 0.05 # standard deviation of the noise on logit-growth
+R_2 <- 1 # standard deviation of the noise in population level
 #sample time
 dT <- .1
 
 #observation times
 t <- seq(0.1, 30, dT)
 n <- length(t)
-r <- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = 0.05))))
+r <- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = R_1))))
 p <- numeric(n)
 p[1] <- p1
 for(i in 2:n)
-  p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
+  p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), R_2)
 # observations
 y <- p + rnorm(n, 0, H)
 
@@ -28,9 +29,9 @@ Rcpp::sourceCpp("ssm_nlg_template.cpp")
 pntrs <- create_xptrs()
 
 ## ----theta--------------------------------------------------------------------
-initial_theta <- c(H = 1.2, R1 = 0.03, R2 = 0.5)
+initial_theta <- c(log_H = 0, log_R1 = log(0.05), log_R2 = 0)
 
-# dT, K, a1 and the prior variances
+# dT, K, a1 and the prior variances of first and second state (logit r and and p)
 known_params <- c(dT = dT, K = K, a11 = -1, a12 = 50, P11 = 1, P12 = 100)
 
 ## ----test---------------------------------------------------------------------
@@ -54,19 +55,19 @@ ts.plot(plogis(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1])), col = 1:
 ## ----mcmc---------------------------------------------------------------------
 # Cholesky of initial proposal matrix (taken from previous runs)
 # used here to speed up convergence due to the small number of iterations
-S <- matrix(c(0.15, 0.01, -0.12, 0, 0.04, -0.05, 0, 0, 0.16), 3, 3) 
-mcmc_res <- run_mcmc(model, iter = 6000, burnin = 1000, particles = 10, 
+S <- matrix(c(0.13, 0.13, -0.11, 0, 0.82, -0.04, 0, 0, 0.16), 3, 3) 
+mcmc_is <- run_mcmc(model, iter = 6000, burnin = 1000, particles = 10, 
   mcmc_type = "is2", sampling_method = "psi", S = S)
-mcmc_ekf_res <- run_mcmc(model, iter = 6000, burnin = 1000, 
+mcmc_ekf <- run_mcmc(model, iter = 6000, burnin = 1000, 
   mcmc_type = "ekf", S = S)
-summary(mcmc_res, return_se = TRUE)
-summary(mcmc_ekf_res, return_se = TRUE)
+summary(mcmc_is, return_se = TRUE)
+summary(mcmc_ekf, return_se = TRUE)
 
 ## ----summaries----------------------------------------------------------------
 library("dplyr")
 library("Hmisc")
-d1 <- as.data.frame(mcmc_res, variable = "states")
-d2 <- as.data.frame(mcmc_ekf_res, variable = "states")
+d1 <- as.data.frame(mcmc_is, variable = "states")
+d2 <- as.data.frame(mcmc_ekf, variable = "states")
 d1$method <- "is2-psi"
 d2$method <- "approx ekf"
 
@@ -106,6 +107,6 @@ ggplot(p_summary, aes(x = time, y = mean)) +
   theme_bw() + facet_wrap(~ cut, scales = "free")
 
 ## -----------------------------------------------------------------------------
-mcmc_res$time
-mcmc_ekf_res$time
+mcmc_is$time
+mcmc_ekf$time
 
