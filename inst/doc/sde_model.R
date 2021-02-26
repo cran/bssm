@@ -1,3 +1,10 @@
+## ---- echo = FALSE------------------------------------------------------------
+if (!requireNamespace("rmarkdown") ||
+    !rmarkdown::pandoc_available("1.12.3")) {
+  warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
+  knitr::knit_exit()
+}
+
 ## ----setup, include=FALSE-----------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
 #options(tinytex.verbose = TRUE)
