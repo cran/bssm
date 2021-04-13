@@ -224,7 +224,7 @@ g_t^{\Psi}(y_t | \alpha_t)  &amp;= \frac{\mu_t(\alpha_t | \alpha_{t-1})}{\tilde 
 \hat \alpha_t + \textrm{Cov}(\alpha_{t},\alpha_{t-1} | y_{1:T}) \textrm{Var}(\alpha_{t-1}| y_{1:T})^{-1} (\alpha_{t-1} - \hat \alpha_{t-1})
 \]</span> and variance <span class="math display">\[
 \textrm{Var}(\alpha_t | y_{1:T}) - \textrm{Cov}(\alpha_t,\alpha_{t-1} | y_{1:T}) \textrm{Var}(\alpha_{t-1} | y_{1:T})^{-1}\textrm{Cov}(\alpha_{t-1},\alpha_t | y_{1:T}).
-\]</span> The mean and variance terms are a standard output of smoothing algorithm, whereas the covariance term can be computed at the same time from the auxiliary variables used in smoothing (see, e.g., <span class="citation">Durbin and Koopman (2012a)</span>). Note that in this case the potentials <span class="math inline">\(g_t^{\Psi}(y_t | \alpha_t)\)</span> simplify to form <span class="math inline">\(\frac{g(y_t | \alpha_t)}{\tilde g(y_t | \alpha_t)}\)</span> and similaly for the first time point which contains additional term corresponding to the marginal likelihood of the approximating Gaussian model.</p>
+\]</span> The mean and variance terms are a standard output of smoothing algorithm, whereas the covariance term can be computed at the same time from the auxiliary variables used in smoothing (see, e.g., <span class="citation">Durbin and Koopman (2012)</span>). Note that in this case the potentials <span class="math inline">\(g_t^{\Psi}(y_t | \alpha_t)\)</span> simplify to form <span class="math inline">\(\frac{g(y_t | \alpha_t)}{\tilde g(y_t | \alpha_t)}\)</span> and similaly for the first time point which contains additional term corresponding to the marginal likelihood of the approximating Gaussian model.</p>
 </div>
 <div id="psi-apf-for-non-linear-gaussian-models" class="section level2">
 <h2><span class="math inline">\(\psi\)</span>-APF for non-linear Gaussian models</h2>
@@ -232,7 +232,7 @@ g_t^{\Psi}(y_t | \alpha_t)  &amp;= \frac{\mu_t(\alpha_t | \alpha_{t-1})}{\tilde 
 p(y_t | \alpha_t) = Z_t(\alpha_t) + H_t\epsilon_t,\\
 p(\alpha_{t+1} | \alpha_t) = T_t(\alpha_t) + R_t \eta_t.
 \]</span> Compared to <span class="citation">Vihola, Helske, and Franks (2020)</span>, the transition density <span class="math inline">\(p(\alpha_{t+1} | \alpha_t)\)</span> is now assumed to be non-linear function of states, and we assume (possibly non-linear) Gaussian density for the observations, and the Gaussian approximation approach of <span class="citation">Durbin and Koopman (1997)</span> and <span class="citation">Shephard and Pitt (1997)</span> is not applicable as such. Natural modification to the algorithm is to use extended Kalman filter (EKF) for obtaining linear-Gaussian model.</p>
-<p>In importance sampling framework, the usage of first order Taylor expansion for obtaining approximate Gaussian model is briefly discussed in <span class="citation">Durbin and Koopman (2012b)</span>. Here we first we run the EKF and the corresponding extended Kalman smoothing algorithm using the the original model. Then, using the obtained smoothed estimates <span class="math inline">\(\tilde \alpha\)</span> as a new linearization point, we construct the corresponding mean-adjusted linear-Gaussian model:</p>
+<p>In importance sampling framework, the usage of first order Taylor expansion for obtaining approximate Gaussian model is briefly discussed in <span class="citation">Durbin and Koopman (2001)</span>. Here we first we run the EKF and the corresponding extended Kalman smoothing algorithm using the the original model. Then, using the obtained smoothed estimates <span class="math inline">\(\tilde \alpha\)</span> as a new linearization point, we construct the corresponding mean-adjusted linear-Gaussian model:</p>
 <p><span class="math display">\[
 y_t = d_t + \dot{Z_t} \alpha_t + H_t \epsilon_t,\\
 \alpha_{t+1} = c_t + \dot{T_t} \alpha_t + R_t \eta_t,\\
@@ -242,7 +242,7 @@ d_t = Z_t(\tilde \alpha_t) - \dot{Z_t} \tilde \alpha_t,\\
 \dot{T_t} = \left. \frac{\partial T_t(x)}{\partial x}\right|_{x=\tilde\alpha_t},\\
 c_t = T_t(\tilde \alpha_t) - \dot{T_t} \tilde \alpha_t.
 \]</span></p>
-<p>We then run Kalman filter and smoother (KFS) again for this model, linearize, and continue until convergence. <span class="citation">Durbin and Koopman (2012b)</span> show that the smoothed state estimate <span class="math inline">\(\hat \alpha\)</span> of the final approximating Gaussian model coincide with the conditional mode of the original model.</p>
+<p>We then run Kalman filter and smoother (KFS) again for this model, linearize, and continue until convergence. <span class="citation">Durbin and Koopman (2001)</span> show that the smoothed state estimate <span class="math inline">\(\hat \alpha\)</span> of the final approximating Gaussian model coincide with the conditional mode of the original model.</p>
 <p>Compared to the <span class="math inline">\(\psi\)</span>-APF with linear-Gaussian states and observations from exponential family, there are cases of non-linear models where it is likely that <span class="math inline">\(\psi\)</span>-APF does not perform well. Due to the severe non-linearities of the model, it is possible that the linearization algorithm does not converge. In case the EKF at first step tends to diverge, using so called iterated extended Kalman filter <span class="citation">(Jazwinski 1970)</span> can sometimes be useful. Another issue is multimodal distributions, where it is likely that standard BSF outperforms <span class="math inline">\(\psi\)</span>-APF. Nevertheless, as illustrated in the next Section, when applicable $-APF can lead to significant computational gains compared to several other particle filtering algorithms.</p>
 </div>
 <div id="illustrations" class="section level2">
@@ -620,11 +620,11 @@ y_t = \exp(\alpha_t) + \epsilon_t,\\
 <div id="ref-durbin-koopman1997" class="csl-entry">
 Durbin, James, and Siem Jan Koopman. 1997. <span>“Monte <span>C</span>arlo Maximum Likelihood Estimation for Non-<span>G</span>aussian State Space Models.”</span> <em>Biometrika</em> 84 (3): 669–84. <a href="https://doi.org/10.1093/biomet/84.3.669">https://doi.org/10.1093/biomet/84.3.669</a>.
 </div>
-<div id="ref-DK2012" class="csl-entry">
-———. 2012a. <em>Time Series Analysis by State Space Methods</em>. 2nd ed. New York: Oxford University Press.
-</div>
 <div id="ref-durbin-koopman2001" class="csl-entry">
-———. 2012b. <em>Time Series Analysis by State Space Methods</em>. 1nd ed. New York: Oxford University Press.
+———. 2001. <em>Time Series Analysis by State Space Methods</em>. 1nd ed. New York: Oxford University Press.
+</div>
+<div id="ref-DK2012" class="csl-entry">
+———. 2012. <em>Time Series Analysis by State Space Methods</em>. 2nd ed. New York: Oxford University Press.
 </div>
 <div id="ref-gordon-salmond-smith" class="csl-entry">
 Gordon, Neil J., D. J. Salmond, and A. F. M. Smith. 1993. <span>“Novel Approach to Nonlinear/Non-<span>G</span>aussian <span>B</span>ayesian State Estimation.”</span> <em>IEE Proceedings-F</em> 140 (2): 107–13.

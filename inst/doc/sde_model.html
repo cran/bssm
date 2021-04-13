@@ -198,27 +198,19 @@ pre code {
 <h2>Introduction</h2>
 <p>This vignette shows how to model discretely observed diffusion models with <code>bssm</code>. We assume that the state equation is defined as a continuous time diffusion model of form <span class="math display">\[
 \textrm{d} \alpha_t =
-\mu(t, \alpha_t,\theta) \textrm{d} t +
-\sigma(t, \alpha_t, \theta) \textrm{d} B_t, \quad t\geq0,
-\]</span> where <span class="math inline">\(B_t\)</span> is a (vector valued) Brownian motion and where <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span> are vector and matrix valued functions, with the univariate observation density <span class="math inline">\(p(y_k | \alpha_k)\)</span> defined at integer times <span class="math inline">\(k=1\ldots,n\)</span>. As these transition densities are generally unavailable for non-linear diffusions, we use Milstein time-discretisation scheme for approximate simulation with bootstrap particle filter. Fine discretisation mesh gives less bias than the coarser one, with increased computational complexity. Here IS-MCMC approach <span class="citation">(<a href="#ref-vihola-helske-franks" role="doc-biblioref">Vihola, Helske, and Franks 2020</a>)</span> can provide substantial computational savings.</p>
+\mu(\alpha_t,\theta) \textrm{d} t +
+\sigma(\alpha_t, \theta) \textrm{d} B_t, \quad t\geq0,
+\]</span> where <span class="math inline">\(B_t\)</span> is a Brownian motion and where <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span> are scalar-valued functions, with the univariate observation density <span class="math inline">\(g(y_k | \alpha_k)\)</span> defined at integer times <span class="math inline">\(k=1\ldots,n\)</span>. As these transition densities are generally unavailable for non-linear diffusions, we use Milstein time-discretisation scheme for approximate simulation with bootstrap particle filter. Fine discretisation mesh gives less bias than the coarser one, with increased computational complexity. Here IS-MCMC approach <span class="citation">(<a href="#ref-vihola-helske-franks" role="doc-biblioref">Vihola, Helske, and Franks 2020</a>)</span> can provide substantial computational savings.</p>
 </div>
 <div id="example" class="section level2">
 <h2>Example</h2>
-<p>Discretely observed latent diffusion models can be constructed using the <code>ssm_sde</code> function, which takes pointers to <code>C++</code> functions defining the drift, diffusion, the derivative of the diffusion function, and the log-densities of the observations and the prior. As an example, let us consider an Ornstein–Uhlenbeck process <span class="math display">\[
+<p>Discretely observed latent diffusion models can be constructed using the <code>ssm_sde</code> function, which takes pointers to <code>C++</code> functions defining the drift, diffusion, the derivative of the diffusion function, the log-densities of the observations, and the log-prior. As an example, let us consider an Ornstein–Uhlenbeck process <span class="math display">\[
 \textrm{d} \alpha_t = \rho (\nu - \alpha_t) \textrm{d} t + \sigma \textrm{d} B_t,
 \]</span> with parameters <span class="math inline">\(\theta = (\log\rho, \nu, \log\sigma) = (\log(0.5), 2, \log(0.2))\)</span> and the initial condition <span class="math inline">\(\alpha_0 = 1\)</span>. For observation density, we use Poisson distribution with parameter <span class="math inline">\(\exp(\alpha_k)\)</span>. We first simulate a trajectory <span class="math inline">\(x_0, \ldots, x_{40}\)</span> using the <code>sde.sim</code> function from the <code>sde</code> package <span class="citation">(<a href="#ref-sde" role="doc-biblioref">Iacus 2016</a>)</span> and use that for the simulation of observations <span class="math inline">\(y\)</span>:</p>
 <pre class="r"><code>set.seed(1)
 n &lt;- 40
-suppressMessages(library(&quot;sde&quot;))</code></pre>
-<pre><code>## Warning: package &#39;sde&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;MASS&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;fda&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;Matrix&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;fds&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;rainbow&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;pcaPP&#39; was built under R version 4.0.3</code></pre>
-<pre><code>## Warning: package &#39;RCurl&#39; was built under R version 4.0.3</code></pre>
-<pre class="r"><code>x &lt;- sde.sim(t0 = 0, T = n, X0 = 1, N = n * 2^5,
+suppressMessages(library(&quot;sde&quot;))
+x &lt;- sde.sim(t0 = 0, T = n, X0 = 1, N = n * 2^5,
   drift = expression(0.5 * (2 - x)),
   sigma = expression(0.2),
   sigma.x = expression(0),
@@ -229,7 +221,7 @@ y &lt;- rpois(n, exp(integer_x))</code></pre>
 <pre class="r"><code>library(&quot;bssm&quot;)
 Rcpp::sourceCpp(&quot;ssm_sde_template.cpp&quot;)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork): path[1]=&quot;C:/
-## Users/jovetale/AppData/Local/Temp/RtmpuYltkx/Rbuild37c452a25bd5/bssm/
+## Users/jovetale/AppData/Local/Temp/RtmpEBvjhT/Rbuild1e0468d95bf3/bssm/
 ## vignettes/../inst/include&quot;: The system cannot find the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()
 sde_model &lt;- ssm_sde(y, pntrs$drift, pntrs$diffusion, 

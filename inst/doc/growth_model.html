@@ -252,7 +252,7 @@ arma::vec T_fn(const unsigned int t, const arma::vec&amp; alpha, const arma::vec
 <p>After creating the file for <code>C++</code> functions, you need to compile the file using <code>Rcpp</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>:</p>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;ssm_nlg_template.cpp&quot;)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork): path[1]=&quot;C:/
-## Users/jovetale/AppData/Local/Temp/RtmpuYltkx/Rbuild37c452a25bd5/bssm/
+## Users/jovetale/AppData/Local/Temp/RtmpEBvjhT/Rbuild1e0468d95bf3/bssm/
 ## vignettes/../inst/include&quot;: The system cannot find the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()</code></pre>
 <p>This takes a few seconds. let’s define our initial guess for <span class="math inline">\(\theta\)</span>, the logarithms of the standard deviations of observational and process level noise, and define the prior distribution for <span class="math inline">\(\alpha_1(we use log-scale in sampling for efficiency reasons, but define priors for the standard deviations, see the template file)\)</span>:</p>
@@ -304,12 +304,9 @@ summary(mcmc_is, return_se = TRUE)</code></pre>
 <p>Using the <code>as.data.frame</code> method we can convert the state samples to a data frame for further processing with the <code>dplyr</code> package <span class="citation">(<a href="#ref-dplyr" role="doc-biblioref">Wickham et al. 2020</a>)</span>:</p>
 <pre class="r"><code>library(&quot;dplyr&quot;)
 library(&quot;Hmisc&quot;)</code></pre>
-<pre><code>## Warning: package &#39;Hmisc&#39; was built under R version 4.0.3</code></pre>
 <pre><code>## Loading required package: lattice</code></pre>
 <pre><code>## Loading required package: survival</code></pre>
-<pre><code>## Warning: package &#39;survival&#39; was built under R version 4.0.3</code></pre>
 <pre><code>## Loading required package: Formula</code></pre>
-<pre><code>## Warning: package &#39;Formula&#39; was built under R version 4.0.3</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;Hmisc&#39;</code></pre>
 <pre><code>## The following objects are masked from &#39;package:dplyr&#39;:
@@ -362,10 +359,10 @@ ggplot(p_summary, aes(x = time, y = mean)) +
 <p>In this example, EKF approximation performs well compared to exact method, while being considerably faster:</p>
 <pre class="r"><code>mcmc_is$time</code></pre>
 <pre><code>##    user  system elapsed 
-##   26.30    0.02   26.32</code></pre>
+##   26.37    0.00   26.38</code></pre>
 <pre class="r"><code>mcmc_ekf$time</code></pre>
 <pre><code>##    user  system elapsed 
-##    3.15    0.01    3.17</code></pre>
+##    3.19    0.00    3.18</code></pre>
 </div>
 <div id="appendix" class="section level2">
 <h2>Appendix</h2>
