@@ -13,10 +13,10 @@ bsm_lg(
   beta,
   xreg = NULL,
   period = frequency(y),
-  a1,
-  P1,
-  D,
-  C
+  a1 = NULL,
+  P1 = NULL,
+  D = NULL,
+  C = NULL
 )
 }
 \arguments{
@@ -40,7 +40,8 @@ If missing, the seasonal component is omitted from the model.}
 
 \item{xreg}{Matrix containing covariates.}
 
-\item{period}{Length of the seasonal component i.e. the number of}
+\item{period}{Length of the seasonal pattern. 
+Default is \code{frequency(y)}. Must be at least 3.}
 
 \item{a1}{Prior means for the initial states (level, slope, seasonals).
 Defaults to vector of zeros.}
@@ -49,14 +50,15 @@ Defaults to vector of zeros.}
 Default is diagonal matrix with 1000 on the diagonal.}
 
 \item{D, C}{Intercept terms for observation and
-state equations, given as a length n vector and m times n matrix respectively.}
+state equations, given as a length n vector and m times n matrix 
+respectively (or scalar and m times 1 matrix).}
 }
 \value{
 Object of class \code{bsm_lg}.
 }
 \description{
-Constructs a basic structural model with local level or local trend component
-and seasonal component.
+Constructs a basic structural model with local level or local trend 
+component and seasonal component.
 }
 \examples{
 

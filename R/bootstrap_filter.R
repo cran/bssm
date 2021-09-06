@@ -1,18 +1,20 @@
 #' Bootstrap Filtering
 #'
-#' Function \code{bootstrap_filter} performs a bootstrap filtering with stratification
-#' resampling.
+#' Function \code{bootstrap_filter} performs a bootstrap filtering with 
+#' stratification resampling.
 #' @param model of class \code{bsm_lg}, \code{bsm_ng} or \code{svm}.
 #' @param particles Number of particles.
 #' @param seed Seed for RNG.
 #' @param ... Ignored.
-#' @return List with samples (\code{alpha}) from the filtering distribution and corresponding weights (\code{weights}),
-#'  as well as filtered and predicted states and corresponding covariances (\code{at}, \code{att}, \code{Pt}, \code{Ptt}), 
-#'  and estimated log-likelihood (\code{logLik}).
+#' @return List with samples (\code{alpha}) from the filtering distribution and 
+#' corresponding weights (\code{weights}), as well as filtered and predicted 
+#' states and corresponding covariances (\code{at}, \code{att}, \code{Pt}, 
+#' \code{Ptt}), and estimated log-likelihood (\code{logLik}).
 #' @export
 #' @references 
 #' Gordon, N. J., Salmond, D. J., & Smith, A. F. M. (1993). 
-#' Novel approach to nonlinear/non-Gaussian Bayesian state estimation. IEE Proceedings-F, 140, 107–113.
+#' Novel approach to nonlinear/non-Gaussian Bayesian state estimation. 
+#' IEE Proceedings-F, 140, 107–113.
 #' @rdname bootstrap_filter
 bootstrap_filter <- function(model, particles, ...) {
   UseMethod("bootstrap_filter", model)
@@ -33,16 +35,18 @@ bootstrap_filter <- function(model, particles, ...) {
 bootstrap_filter.gaussian <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
-  if(missing(particles)) {
+  if (missing(particles)) {
     particles <- match.call(expand.dots = TRUE)$particles
     if (!is.null(particles)) particles <- particles
   }
   
   out <- bsf(model, particles, seed, TRUE, model_type(model))
   colnames(out$at) <- colnames(out$att) <- colnames(out$Pt) <-
-    colnames(out$Ptt) <- rownames(out$Pt) <- rownames(out$Ptt) <- names(model$a1)
+    colnames(out$Ptt) <- rownames(out$Pt) <- rownames(out$Ptt) <- 
+    names(model$a1)
   out$at <- ts(out$at, start = start(model$y), frequency = frequency(model$y))
-  out$att <- ts(out$att, start = start(model$y), frequency = frequency(model$y))
+  out$att <- ts(out$att, start = start(model$y), 
+    frequency = frequency(model$y))
   rownames(out$alpha) <- names(model$a1)
   out$alpha <- aperm(out$alpha, c(2, 1, 3))
   out
@@ -62,10 +66,11 @@ bootstrap_filter.gaussian <- function(model, particles,
 bootstrap_filter.nongaussian <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
 
-  if(missing(particles)) {
+  if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
     if (!is.null(nsim)) {
-      warning("Argument `nsim` is deprecated. Use argument `particles` instead.")
+      warning(paste0("Argument `nsim` is deprecated. Use argument `particles`",
+      "instead.", sep = " "))
       particles <- nsim
     }
   }
@@ -77,7 +82,8 @@ bootstrap_filter.nongaussian <- function(model, particles,
   
   out <- bsf(model, particles, seed, FALSE, model_type(model))
   colnames(out$at) <- colnames(out$att) <- colnames(out$Pt) <-
-    colnames(out$Ptt) <- rownames(out$Pt) <- rownames(out$Ptt) <- names(model$a1)
+    colnames(out$Ptt) <- rownames(out$Pt) <- rownames(out$Ptt) <- 
+    names(model$a1)
   out$at <- ts(out$at, start = start(model$y), frequency = frequency(model$y))
   out$att <- ts(out$att, start = start(model$y), frequency = frequency(model$y))
   rownames(out$alpha) <- names(model$a1)
@@ -90,10 +96,11 @@ bootstrap_filter.nongaussian <- function(model, particles,
 bootstrap_filter.ssm_nlg <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
 
-  if(missing(particles)) {
+  if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
     if (!is.null(nsim)) {
-      warning("Argument `nsim` is deprecated. Use argument `particles` instead.")
+      warning(paste("Argument `nsim` is deprecated. Use argument `particles`",
+      "instead.", sep = " "))
       particles <- nsim
     }
   }
@@ -119,12 +126,13 @@ bootstrap_filter.ssm_nlg <- function(model, particles,
 bootstrap_filter.ssm_sde <- function(model, particles, L,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
-  if(L < 1) stop("Discretization level L must be larger than 0.")
+  if (L < 1) stop("Discretization level L must be larger than 0.")
   
-  if(missing(particles)) {
+  if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
     if (!is.null(nsim)) {
-      warning("Argument `nsim` is deprecated. Use argument `particles` instead.")
+      warning(paste("Argument `nsim` is deprecated. Use argument `particles`",
+      "instead.", sep = " "))
       particles <- nsim
     }
   }

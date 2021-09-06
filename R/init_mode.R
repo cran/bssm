@@ -9,7 +9,7 @@ init_mode <- function(y, u, distribution) {
       y <- log(y)
     },
     binomial = {
-      y <- qlogis((ifelse(is.na(y), 0.5, y) + 0.5)/(u + 1))
+      y <- qlogis((ifelse(is.na(y), 0.5, y) + 0.5) / (u + 1))
     },
     gamma = {
       y <- y / u
@@ -18,13 +18,14 @@ init_mode <- function(y, u, distribution) {
     },
     "negative binomial" = {
       y <- y / u
-      y[is.na(y) | y < 1/6] <- 1/6
+      y[is.na(y) | y < 1 / 6] <- 1 / 6
       y <- log(y)
     },
     gaussian = {
       
     },
-    stop("Argument distribution must be 'poisson', 'binomial', 'gamma', 'gaussian', or 'negative binomial'.")
+    stop(paste("Argument distribution must be 'poisson', 'binomial', 'gamma',",
+    "'gaussian', or 'negative binomial'.", sep = " "))
   )
   y
 }

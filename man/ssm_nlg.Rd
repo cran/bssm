@@ -25,7 +25,8 @@ ssm_nlg(
 )
 }
 \arguments{
-\item{y}{Observations as multivariate time series (or matrix) of length \eqn{n}.}
+\item{y}{Observations as multivariate time series (or matrix) of length 
+\eqn{n}.}
 
 \item{Z, H, T, R}{An external pointers for the C++ functions which
 define the corresponding model functions.}
@@ -39,9 +40,11 @@ define the gradients of the corresponding model functions.}
 
 \item{theta}{Parameter vector passed to all model functions.}
 
-\item{known_params}{Vector of known parameters passed to all model functions.}
+\item{known_params}{Vector of known parameters passed to all model 
+functions.}
 
-\item{known_tv_params}{Matrix of known parameters passed to all model functions.}
+\item{known_tv_params}{Matrix of known parameters passed to all model 
+functions.}
 
 \item{n_states}{Number of states in the model.}
 
@@ -50,7 +53,8 @@ define the gradients of the corresponding model functions.}
 \item{log_prior_pdf}{An external pointer for the C++ function which
 computes the log-prior density given theta.}
 
-\item{time_varying}{Optional logical vector of length 4, denoting whether the values of
+\item{time_varying}{Optional logical vector of length 4, denoting whether 
+the values of
 Z, H, T, and R vary with respect to time variable (given identical states).
 If used, this can speed up some computations.}
 
@@ -60,20 +64,47 @@ If used, this can speed up some computations.}
 Object of class \code{ssm_nlg}.
 }
 \description{
-Constructs an object of class \code{ssm_nlg} by defining the corresponding terms
-of the observation and state equation.
+Constructs an object of class \code{ssm_nlg} by defining the corresponding 
+terms of the observation and state equation.
 }
 \details{
 The nonlinear Gaussian model is defined as
 
-\deqn{y_t = Z(t, \alpha_t, \theta) + H(t, \theta) \epsilon_t, (\textrm{observation equation})}
-\deqn{\alpha_{t+1} = T(t, \alpha_t, \theta) + R(t, \theta)\eta_t, (\textrm{transition equation})}
+\deqn{y_t = Z(t, \alpha_t, \theta) + H(t, \theta) \epsilon_t, 
+(\textrm{observation equation})}
+\deqn{\alpha_{t+1} = T(t, \alpha_t, \theta) + R(t, \theta)\eta_t, 
+(\textrm{transition equation})}
 
 where \eqn{\epsilon_t \sim N(0, I_p)}, \eqn{\eta_t \sim N(0, I_m)} and
 \eqn{\alpha_1 \sim N(a_1, P_1)} independently of each other, and functions
-\eqn{Z, H, T, R} can depend on \eqn{\alpha_t} and parameter vector \eqn{\theta}.
+\eqn{Z, H, T, R} can depend on \eqn{\alpha_t} and parameter vector 
+\eqn{\theta}.
 
 Compared to other models, these general models need a bit more effort from
 the user, as you must provide the several small C++ snippets which define the
 model structure. See examples in the vignette.
+}
+\examples{
+\dontrun{
+set.seed(1)
+n <- 50
+x <- y <- numeric(n)
+y[1] <- rnorm(1, exp(x[1]), 0.1)
+for(i in 1:(n-1)) {
+ x[i+1] <- rnorm(1, sin(x[i]), 0.1)
+ y[i+1] <- rnorm(1, exp(x[i+1]), 0.1)
+}
+
+pntrs <- nlg_example_models("sin_exp")
+
+model_nlg <- ssm_nlg(y = y, a1 = pntrs$a1, P1 = pntrs$P1, 
+  Z = pntrs$Z_fn, H = pntrs$H_fn, T = pntrs$T_fn, R = pntrs$R_fn, 
+  Z_gn = pntrs$Z_gn, T_gn = pntrs$T_gn,
+  theta = c(log_H = log(0.1), log_R = log(0.1)), 
+  log_prior_pdf = pntrs$log_prior_pdf,
+  n_states = 1, n_etas = 1, state_names = "state")
+
+out <- ekf(model_nlg, 100)
+ts.plot(cbind(x, out$at[1:n], out$att[1:n]), col = 1:3)
+}
 }
