@@ -4,17 +4,15 @@
 #' corresponding (scaled) importance weights. 
 #' Probably mostly useful for comparing KFAS and bssm packages.
 #' 
-#' @param model of class \code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+#' 
+#' @inheritParams gaussian_approx
+#' @param model Model of class \code{bsm_ng}, \code{ar1_ng} \code{svm}, 
 #' \code{ssm_ung}, or \code{ssm_mng}.
-#' @param nsim Number of samples.
+#' @param nsim Number of samples (positive integer).
 #' @param use_antithetic Logical. If \code{TRUE} (default), use antithetic 
 #' variable for location in simulation smoothing. Ignored for \code{ssm_mng} 
 #' models.
-#' @param max_iter Maximum number of iterations used for the approximation.
-#' @param conv_tol Convergence threshold for the approximation. Approximation 
-#' is claimed to be converged when the mean squared difference of the modes is 
-#' less than \code{conv_tol}.
-#' @param seed Seed for the random number generator.
+#' @param seed Seed for the random number generator (positive integer).
 #' @param ... Ignored.
 #' @export
 #' @rdname importance_sample
@@ -45,8 +43,17 @@ importance_sample.nongaussian <- function(model, nsim, use_antithetic = TRUE,
   max_iter = 100, conv_tol = 1e-8, 
   seed = sample(.Machine$integer.max, size = 1), ...) {
 
-  model$max_iter <- max_iter
-  model$conv_tol <- conv_tol
+  model$max_iter <- check_integer(max_iter, "max_iter", positive = FALSE)
+  model$conv_tol <- check_positive_real(conv_tol, "conv_tol")
+  nsim <- check_integer(nsim, "nsim")
+  
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    length(model$a1) * nsim
+  if (nsim > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "values, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   model$distribution <- pmatch(model$distribution,
     c("svm", "poisson", "binomial", "negative binomial", "gamma", "gaussian"), 
     duplicates.ok = TRUE) - 1

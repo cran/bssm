@@ -1,8 +1,11 @@
+# Integrated Autocorrelation Time
+#
+# Here IACT is based on Sokal, 
+# Monte Carlo Methods in Statistical Mechanics: Foundations and New Algorithms
+# @param x A vector.
 iact <- function(x) {
   n <- length(x)
   x_ <- (x - mean(x)) / sd(x)
-  # Sokal: 
-  # Monte Carlo Methods in Statistical Mechanics: Foundations and New Algorithms
   C <- max(5.0, log10(n))
   tau <- 1
   for (k in 1:(n - 1)) {
@@ -11,14 +14,13 @@ iact <- function(x) {
   }
   max(0.0, tau)
 }
-#' Asymptotic Variance of IS-type Estimators
-#'
-#' Estimates the asymptotic variance based on Corollary 1 
-#' of Vihola et al. (2020) from weighted samples from IS-MCMC.
-#'  
-#' @param x Vector of samples.
-#' @param w Vector of weights.
-#' @export
+# Asymptotic Variance of IS-type Estimators
+#
+# Estimates the asymptotic variance based on Corollary 1 
+# of Vihola et al. (2020) from weighted samples from IS-MCMC.
+#  
+# @param x Vector of samples.
+# @param w Vector of weights.
 asymptotic_var <- function(x, w) {
   estimate_c <- mean(w)
   estimate_mean <- weighted_mean(x, w)
@@ -148,10 +150,16 @@ print.mcmc_output <- function(x, ...) {
 #' @references 
 #' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based 
 #' on approximate marginal Markov chain Monte Carlo. 
-#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+#' Scand J Statist. 2020; 1-38. https://doi.org/10.1111/sjos.12492
 #' @export
 summary.mcmc_output <- function(object, return_se = FALSE, variable = "theta", 
   only_theta = FALSE, ...) {
+  
+  
+  if (!test_flag(return_se)) 
+    stop("Argument 'return_se' should be TRUE or FALSE. ")
+  if (!test_flag(only_theta)) 
+    stop("Argument 'only_theta' should be TRUE or FALSE. ")
   
   if (only_theta) {
     variable <- "theta"
@@ -168,8 +176,6 @@ summary.mcmc_output <- function(object, return_se = FALSE, variable = "theta",
       sd_theta <- sqrt(diag(weighted_var(theta, w, method = "moment")))
       
       if (return_se) {
-        mean_theta <- weighted_mean(theta, w)
-        sd_theta <- sqrt(diag(weighted_var(theta, w, method = "moment")))
         se_theta_is <- weighted_se(theta, w)
         se_theta <- sqrt(apply(theta, 2, function(x) asymptotic_var(x, w)))
         ess_theta <- (sd_theta / se_theta)^2
@@ -188,8 +194,6 @@ summary.mcmc_output <- function(object, return_se = FALSE, variable = "theta",
       sd_theta <- apply(theta, 2, sd)
       
       if (return_se) {
-        mean_theta <- colMeans(theta)
-        sd_theta <- apply(theta, 2, sd)
         se_theta <-  sqrt(spectrum0.ar(theta)$spec / nrow(theta))
         ess_theta <- (sd_theta / se_theta)^2
         summary_theta <- matrix(c(mean_theta, sd_theta, se_theta, ess_theta), 
@@ -288,6 +292,9 @@ summary.mcmc_output <- function(object, return_se = FALSE, variable = "theta",
 #' @export
 expand_sample <- function(x, variable = "theta", times, states, 
   by_states = TRUE) {
+  
+  if (!test_flag(by_states)) 
+    stop("Argument 'by_states' should be TRUE or FALSE. ")
   
   variable <- match.arg(variable, c("theta", "states"))
   if (x$mcmc_type %in% paste0("is", 1:3)) 

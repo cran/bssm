@@ -7,29 +7,36 @@
 #' For non-Gaussian/non-linear models, the simulation is based on the 
 #' approximating Gaussian model.
 #'
-#' @param model Model object.
-#' @param nsim Number of independent samples.
-#' @param use_antithetic Use an antithetic variable for location. 
-#' Default is \code{FALSE}. Ignored for multivariate models.
-#' @param seed Seed for the random number generator.
-#' @param ... Ignored.
+#' @inheritParams importance_sample
+#' @param model Model of class \code{bsm_lg}, \code{ar1_lg}
+#' \code{ssm_ulg}, or \code{ssm_mlg}, or one of the non-gaussian models
+#' \code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+#' \code{ssm_ung}, or \code{ssm_mng}.
 #' @return An array containing the generated samples.
 #' @export
 #' @rdname sim_smoother
 #' @examples
-#' model <- bsm_lg(rep(NA, 50), sd_level = uniform(1,0,5), 
-#'   sd_y = uniform(1,0,5))
-#' sim <- sim_smoother(model, 12)
+#' # only missing data, simulates from prior
+#' model <- bsm_lg(rep(NA, 25), sd_level = 1, 
+#'   sd_y = 1)
+#' # use antithetic variable for location
+#' sim <- sim_smoother(model, nsim = 4, use_antithetic = TRUE, seed = 1)
 #' ts.plot(sim[, 1, ])
-sim_smoother <- function(model, nsim, seed, use_antithetic = FALSE, ...) {
+#' cor(sim[, 1, ])
+sim_smoother <- function(model, nsim, seed, use_antithetic = TRUE, ...) {
   UseMethod("sim_smoother", model)
 }
 #' @method sim_smoother gaussian
 #' @rdname sim_smoother
 #' @export
 sim_smoother.gaussian <- function(model, nsim = 1, 
-  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
+  seed = sample(.Machine$integer.max, size = 1), use_antithetic = TRUE, ...) {
 
+  nsim <- check_integer(nsim, "nsim")  
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max) 
+  if (!test_flag(use_antithetic)) 
+    stop("Argument 'use_antithetic' should be TRUE or FALSE. ")
+  
   out <- gaussian_sim_smoother(model, nsim, use_antithetic, seed, 
     model_type(model))
   rownames(out) <- names(model$a1)
@@ -39,7 +46,13 @@ sim_smoother.gaussian <- function(model, nsim = 1,
 #' @rdname sim_smoother
 #' @export
 sim_smoother.nongaussian <- function(model, nsim = 1,
-  seed = sample(.Machine$integer.max, size = 1), use_antithetic = FALSE, ...) {
+  seed = sample(.Machine$integer.max, size = 1), use_antithetic = TRUE, ...) {
+  
+  nsim <- check_integer(nsim, "nsim")
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  if (!test_flag(use_antithetic)) 
+    stop("Argument 'use_antithetic' should be TRUE or FALSE. ")
+  
   sim_smoother(gaussian_approx(model), nsim = nsim, 
     use_antithetic = use_antithetic, seed = seed)
 }

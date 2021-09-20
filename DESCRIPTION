@@ -2,7 +2,7 @@ Package: bssm
 Type: Package
 Title: Bayesian Inference of Non-Linear and Non-Gaussian State Space
         Models
-Version: 1.1.6
+Version: 1.1.7
 Authors@R: 
     c(person(given = "Jouni",
            family = "Helske",
@@ -25,9 +25,9 @@ Description: Efficient methods for Bayesian inference of state space models
 License: GPL (>= 2)
 Depends: R (>= 3.5.0)
 Suggests: covr, dplyr, ggplot2 (>= 2.0.0), Hmisc, KFAS (>= 1.2.1),
-        knitr (>= 1.11), MASS, ramcmc, rmarkdown (>= 0.8.1), sde,
-        sitmo, testthat
-Imports: coda (>= 0.18-1), diagis, Rcpp (>= 0.12.3)
+        knitr (>= 1.11), MASS, posterior, rmarkdown (>= 0.8.1), ramcmc,
+        sde, sitmo, testthat
+Imports: checkmate, coda (>= 0.18-1), diagis, Rcpp (>= 0.12.3)
 LinkingTo: Rcpp, RcppArmadillo, ramcmc, sitmo
 SystemRequirements: C++11, pandoc (>= 1.12.3, needed for vignettes)
 RoxygenNote: 7.1.1
@@ -37,9 +37,9 @@ URL: https://github.com/helske/bssm
 ByteCompile: true
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2021-09-05 18:53:23 UTC; jovetale
+Packaged: 2021-09-19 06:46:36 UTC; jovetale
 Author: Jouni Helske [aut, cre] (<https://orcid.org/0000-0001-7130-793X>),
   Matti Vihola [aut] (<https://orcid.org/0000-0002-8041-7222>)
 Maintainer: Jouni Helske <jouni.helske@iki.fi>
 Repository: CRAN
-Date/Publication: 2021-09-06 06:40:05 UTC
+Date/Publication: 2021-09-20 06:50:05 UTC

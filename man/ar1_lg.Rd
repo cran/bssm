@@ -7,20 +7,26 @@
 ar1_lg(y, rho, sigma, mu, sd_y, beta, xreg = NULL)
 }
 \arguments{
-\item{y}{Vector or a \code{\link{ts}} object of observations.}
+\item{y}{Vector or a \code{ts} object of observations.}
 
-\item{rho}{prior for autoregressive coefficient.}
+\item{rho}{Prior for autoregressive coefficient. 
+Should be an object of class \code{bssm_prior}.}
 
-\item{sigma}{Prior for the standard deviation of noise of the AR-process.}
+\item{sigma}{Prior for the standard deviation of noise of the AR-process. 
+Should be an object of class \code{bssm_prior}}
 
 \item{mu}{A fixed value or a prior for the stationary mean of the latent 
-AR(1) process. Parameter is omitted if this is set to 0.}
+AR(1) process. Should be an object of class \code{bssm_prior} or scalar 
+value defining a fixed mean such as 0.}
 
-\item{sd_y}{Prior for the standard deviation of observation equation.}
+\item{sd_y}{A prior for the standard deviation of observation equation.}
 
-\item{beta}{Prior for the regression coefficients.}
+\item{beta}{Prior for the regression coefficients. 
+Should be an object of class \code{bssm_prior} or \code{bssm_prior_list} 
+(in case of multiple coefficients) or missing in case of no covariates.}
 
-\item{xreg}{Matrix containing covariates.}
+\item{xreg}{Matrix containing covariates with number of rows matching the 
+length of \code{y}.}
 }
 \value{
 Object of class \code{ar1_lg}.
@@ -30,9 +36,25 @@ Constructs a simple Gaussian model where the state dynamics
 follow an AR(1) process.
 }
 \examples{
-model <- ar1_lg(BJsales, rho = uniform(0.5,-1,1), 
-  sigma = halfnormal(1, 10), mu = normal(200, 200, 100), 
-  sd_y = halfnormal(1, 10))
+set.seed(1)
+mu <- 2
+rho <- 0.7
+sd_y <- 0.1
+sigma <- 0.5
+beta <- -1
+x <- rnorm(30)
+z <- y <- numeric(30)
+z[1] <- rnorm(1, mu, sigma / sqrt(1 - rho^2))
+y[1] <- rnorm(1, beta * x[1] + z[1], sd_y)
+for(i in 2:30) {
+  z[i] <- rnorm(1, mu * (1 - rho) + rho * z[i - 1], sigma)
+  y[i] <- rnorm(1, beta * x[i] + z[i], sd_y)
+}
+model <- ar1_lg(y, rho = uniform(0.5, -1, 1), 
+  sigma = halfnormal(1, 10), mu = normal(0, 0, 1), 
+  sd_y = halfnormal(1, 10), 
+  xreg = x,  beta = normal(0, 0, 1))
 out <- run_mcmc(model, iter = 2e4)
 summary(out, return_se = TRUE)
+
 }

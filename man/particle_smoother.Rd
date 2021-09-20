@@ -48,9 +48,9 @@ particle_smoother(model, particles, ...)
 )
 }
 \arguments{
-\item{model}{Model.}
+\item{model}{A model object of class \code{bssm_model}.}
 
-\item{particles}{Number of samples for particle filter.}
+\item{particles}{Number of particles as a positive integer.}
 
 \item{...}{Ignored.}
 
@@ -59,23 +59,24 @@ For Gaussian and non-Gaussian models with linear dynamics,
 options are \code{"bsf"} (bootstrap particle filter, default for 
 non-linear models) 
 and \code{"psi"} (\eqn{\psi}-APF, the default for other models), and 
-for non-linear models options \code{"ekf"} (extended Kalman particle filter) 
+for non-linear models option \code{"ekf"} (extended Kalman particle filter) 
 is also available.}
 
-\item{seed}{Seed for RNG.}
+\item{seed}{Seed for RNG (non-negative integer).}
 
-\item{max_iter}{Maximum number of iterations used in Gaussian approximation. 
-Used \eqn{\psi}-APF.}
+\item{max_iter}{Maximum number of iterations used in Gaussian approximation,
+as a positive integer. 
+Default is 100 (although typically only few iterations are needed).}
 
-\item{conv_tol}{Tolerance parameter used in Gaussian approximation. 
-Used \eqn{\psi}-APF.}
+\item{conv_tol}{Positive tolerance parameter used in Gaussian approximation. 
+Default is 1e-8.}
 
-\item{iekf_iter}{If zero (default), first approximation for non-linear 
-Gaussian models is obtained from extended Kalman filter. If 
-\code{iekf_iter > 0}, iterated extended Kalman filter is used with 
-\code{iekf_iter} iterations.}
+\item{iekf_iter}{Non-negative integer. If zero (default), first 
+approximation for non-linear Gaussian models is obtained from extended 
+Kalman filter. If \code{iekf_iter > 0}, iterated extended Kalman filter is
+used with \code{iekf_iter} iterations.}
 
-\item{L}{Integer defining the discretization level.}
+\item{L}{Positive integer defining the discretization level for SDE model.}
 }
 \value{
 List with samples (\code{alpha}) from the smoothing distribution 
@@ -107,22 +108,22 @@ ts.plot(out$alphahat, rowMeans(out2), col = 1:2)
 
 }
 \references{
-[1] Gordon, N. J., Salmond, D. J., & Smith, A. F. M. (1993). 
+[1] Gordon, NJ, Salmond, DJ, Smith, AFM (1993). 
 Novel approach to nonlinear/non-Gaussian Bayesian state estimation. 
-IEE Proceedings-F, 140, 107–113.
+IEE Proceedings-F, 140, 107-113.
 
 [2] Vihola, M, Helske, J, Franks, J. Importance sampling type estimators 
 based on approximate marginal Markov chain Monte Carlo. 
-Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+Scand J Statist. 2020; 1-38. https://doi.org/10.1111/sjos.12492
 
-[3] Van Der Merwe, R., Doucet, A., De Freitas, N., & Wan, E. A. (2001). 
+[3] Van Der Merwe, R, Doucet, A, De Freitas, N,  Wan, EA (2001). 
 The unscented particle filter. 
-In Advances in neural information processing systems (pp. 584-590).
+In Advances in neural information processing systems, p 584-590.
 
-[4] Jazwinski, A. 1970. Stochastic Processes and Filtering Theory. 
+[4] Jazwinski, A 1970. Stochastic Processes and Filtering Theory. 
 Academic Press.
 
-[5] Kitagawa, G. (1996). Monte Carlo filter and smoother for non-Gaussian 
+[5] Kitagawa, G (1996). Monte Carlo filter and smoother for non-Gaussian 
 nonlinear state space models. 
-Journal of Computational and Graphical Statistics, 5, 1–25.
+Journal of Computational and Graphical Statistics, 5, 1-25.
 }

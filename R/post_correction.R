@@ -16,30 +16,31 @@ get_map <- function(x) {
 #'  but see also Section 10.3 in Vihola et al (2020).
 #' 
 #' @param model Model of class \code{nongaussian} or \code{ssm_nlg}.
-#' @param mcmc_output An output from \code{run_mcmc} used to compute the MAP 
-#' estimate of theta. While the intended use assumes this is from 
-#' approximate MCMC, it is not actually checked, i.e., 
-#' it is also possible to input previous (asymptotically) exact output.
-#' @param candidates Vector containing the candidate number of particles to 
-#' test. Default is \code{seq(10, 100, by = 10)}. 
-#' @param replications How many replications should be used for computing 
-#' the standard deviations? Default is 100.
-#' @param seed Seed for the random number generator.
+#' @param theta A vector of theta corresponding to the model, at which point 
+#' the standard deviation of the log-likelihood is computed. Typically MAP 
+#' estimate from the (approximate) MCMC run. Can also be an output from 
+#' \code{run_mcmc} which is then used to compute the MAP 
+#' estimate of theta.
+#' @param candidates Vector of positive integers containing the candidate 
+#' number of particles to test. Default is \code{seq(10, 100, by = 10)}. 
+#' @param replications Positive integer, how many replications should be used 
+#' for computing the standard deviations? Default is 100.
+#' @param seed Seed for the random number generator  (positive integer).
 #' @return List with suggested number of particles \code{N} and matrix 
 #' containing estimated standard deviations of the log-weights and 
 #' corresponding number of particles.
 #' @references 
-#' A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn, 
+#' Doucet, A, Pitt, MK, Deligiannidis, G, Kohn, R (2015). 
 #' Efficient implementation of Markov chain Monte Carlo when using an 
-#' unbiased likelihood estimator, Biometrika, 102, 2, 2015, Pages 295–313, 
+#' unbiased likelihood estimator, Biometrika, 102(2) p. 295-313,
 #' https://doi.org/10.1093/biomet/asu075
 #' 
-#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators 
+#' Vihola, M, Helske, J, Franks, J (2020). Importance sampling type estimators 
 #' based on approximate marginal Markov chain Monte Carlo. 
-#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+#' Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 #' @export
 #' @examples 
-#' \dontrun{
+#' 
 #' set.seed(1)
 #' n <- 300
 #' x1 <- sin((2 * pi / 12) * 1:n)
@@ -47,7 +48,7 @@ get_map <- function(x) {
 #' alpha <- numeric(n)
 #' alpha[1] <- 0
 #' rho <- 0.7
-#' sigma <- 2
+#' sigma <- 1.2
 #' mu <- 1
 #' for(i in 2:n) {
 #'   alpha[i] <- rnorm(1, mu * (1 - rho) + rho * alpha[i-1], sigma)
@@ -58,24 +59,48 @@ get_map <- function(x) {
 #' ts.plot(y / u)
 #' 
 #' model <- ar1_ng(y, distribution = "binomial", 
-#'   rho = uniform(0.5, -1, 1), sigma = gamma(1, 2, 0.001),
+#'   rho = uniform(0.5, -1, 1), sigma = gamma_prior(1, 2, 0.001),
 #'   mu = normal(0, 0, 10),
 #'   xreg = cbind(x1,x2), beta = normal(c(0, 0), 0, 5),
 #'   u = u)
 #' 
-#' out_approx <- run_mcmc(model, mcmc_type = "approx", 
-#'  iter = 5000)
-#' 
-#' estN <- suggest_N(model, out_approx, candidates = seq(10, 50, by = 10))
+#' # theta from earlier approximate MCMC run
+#' # out_approx <- run_mcmc(model, mcmc_type = "approx", 
+#' #   iter = 5000) 
+#' # theta <- out_approx$theta[which.max(out_approx$posterior), ]
+#'
+#' theta <- c(rho = 0.64, sigma = 1.16, mu = 1.1, x1 = 0.56, x2 = 1.28)
+#'
+#' estN <- suggest_N(model, theta, candidates = seq(10, 50, by = 10),
+#'   replications = 50, seed = 1)
 #' plot(x = estN$results$N, y = estN$results$sd, type = "b")
 #' estN$N
-#' }
-suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10), 
-  replications = 100, seed = sample(.Machine$integer.max, size = 1)) {
+#' 
+suggest_N <- function(model, theta, 
+  candidates = seq(10, 100, by = 10), replications = 100, 
+  seed = sample(.Machine$integer.max, size = 1)) {
   
-  if (!inherits(mcmc_output, "mcmc_output")) 
-    stop("Object 'mcmc_output' is not valid output from 'run_mcmc'.")
-  theta <- get_map(mcmc_output)
+  replications <- check_integer(replications, "replications")
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  
+  if (!test_integerish(candidates, lower = 1, any.missing = FALSE, 
+    min.len = 1)) {
+    stop("Argument 'candidates' should be vector of positive integers. ")
+  } 
+  if (max(candidates) > 1e7) 
+    stop(paste("I don't believe you want to use over 1e7 particles",
+      "If you really do, please file an issue at Github.", sep = " "))
+  
+  if (missing(theta) | (!is.vector(theta) & !inherits(theta, "mcmc_output"))) {
+    stop("'theta' should be either a vector or object of class 'mcmc_output'.")
+  }
+  if (inherits(theta, "mcmc_output")) {
+    theta <- get_map(theta)
+  } else {
+    if (length(theta) != length(model$theta)) {
+      stop("Length of 'theta' does not match length of 'model$theta'.")
+    }
+  }
   
   if (inherits(model, "nongaussian")) {
     model$distribution <- pmatch(model$distribution,
@@ -94,7 +119,7 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
         theta, candidates, replications, seed)
     } else 
       stop(paste("Function 'suggest_N' is only available for models of",
-      "class 'nongaussian' and 'nlg_ssm'.", sep = " "))
+        "class 'nongaussian' and 'nlg_ssm'.", sep = " "))
   }
   list(N = candidates[which(out < 1)[1]], results = data.frame(N = candidates, 
     sd = out))
@@ -113,8 +138,8 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
 #' While the intended use assumes this is from approximate MCMC, it is not 
 #' actually checked, i.e., it is also possible to input previous 
 #' (asymptotically) exact output.
-#' @param particles Number of particles for \eqn{\psi}-APF. 
-#' @param threads Number of parallel threads.
+#' @param particles Number of particles for \eqn{\psi}-APF (positive integer). 
+#' @param threads Number of parallel threads (positive integer, default is 1).
 #' @param is_type Type of IS-correction. Possible choices are 
 #'\code{"is3"} for simple importance sampling (weight is computed for each 
 #'MCMC iteration independently),
@@ -122,22 +147,22 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
 #' \code{"is1"} for importance sampling type weighting where the number of 
 #' particles used forweight computations is proportional to the length of the 
 #' jump chain block.
-#' @param seed Seed for the random number generator.
+#' @param seed Seed for the random number generator  (positive integer).
 #' @return List with suggested number of particles \code{N} and matrix 
 #' containing estimated standard deviations of the log-weights and 
 #' corresponding number of particles.
 #' @references 
-#' A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn, 
+#' A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn (2018). 
 #' Efficient implementation of Markov chain Monte Carlo when using an unbiased 
-#' likelihood estimator. Biometrika, 102, 2, 2015, Pages 295–313, 
+#' likelihood estimator. Biometrika, 102, 2, 295-313, 
 #' https://doi.org/10.1093/biomet/asu075
 #' 
-#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based 
+#' Vihola, M, Helske, J, Franks, J (2020). Importance sampling type estimators based 
 #' on approximate marginal Markov chain Monte Carlo. 
-#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+#' Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 #' @export
 #' @examples 
-#' \dontrun{
+#' \donttest{
 #' set.seed(1)
 #' n <- 300
 #' x1 <- sin((2 * pi / 12) * 1:n)
@@ -156,7 +181,7 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
 #' ts.plot(y / u)
 #' 
 #' model <- ar1_ng(y, distribution = "binomial", 
-#'   rho = uniform(0.5, -1, 1), sigma = gamma(1, 2, 0.001),
+#'   rho = uniform(0.5, -1, 1), sigma = gamma_prior(1, 2, 0.001),
 #'   mu = normal(0, 0, 10),
 #'   xreg = cbind(x1,x2), beta = normal(c(0, 0), 0, 5),
 #'   u = u)
@@ -199,7 +224,7 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
 #'   group_by(time) %>%
 #'   summarise(mean = mean(value))
 #' 
-#' dplyr:: bind_rows(approx = p_approx, 
+#' dplyr::bind_rows(approx = p_approx, 
 #'   exact = p_exact, .id = "method") %>%
 #'   filter(time > 200) %>%
 #' ggplot(aes(time, mean, colour = method)) + 
@@ -208,6 +233,11 @@ suggest_N <- function(model, mcmc_output, candidates = seq(10, 100, by = 10),
 #' }
 post_correct <- function(model, mcmc_output, particles, threads = 1L, 
   is_type = "is2", seed = sample(.Machine$integer.max, size = 1)) {
+  
+  particles <- check_integer(particles, "particles")
+  threads <- check_integer(threads, "threads")
+  
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
   if (!inherits(mcmc_output, "mcmc_output")) 
     stop("Object 'mcmc_output' is not valid output from 'run_mcmc'.")
@@ -237,7 +267,7 @@ post_correct <- function(model, mcmc_output, particles, threads = 1L,
         mcmc_output$counts, t(mcmc_output$theta), mcmc_output$modes)
     } else 
       stop(paste("Function 'post_correct' is only available for models of", 
-      "class 'nongaussian' and 'ssm_nlg'.", sep = " "))
+        "class 'nongaussian' and 'ssm_nlg'.", sep = " "))
   }
   mcmc_output$weights <- out$weights
   mcmc_output$posterior <- mcmc_output$posterior + out$posterior

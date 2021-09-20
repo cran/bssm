@@ -8,41 +8,42 @@
 \method{predict}{mcmc_output}(
   object,
   model,
-  type = "response",
   nsim,
+  type = "response",
   future = TRUE,
   seed = sample(.Machine$integer.max, size = 1),
   ...
 )
 }
 \arguments{
-\item{object}{mcmc_output object obtained from 
+\item{object}{Results object of class \code{mcmc_output} from 
 \code{\link{run_mcmc}}}
 
-\item{model}{Model for future observations. 
-Should have same structure as the original model which was used in MCMC,
-in order to plug the posterior samples of the model parameters to the right 
-places. 
-It is also possible to input the original model, which can be useful for 
-example for posterior predictive checks. In this case, set argument 
+\item{model}{A \code{bssm_model} object.. 
+Should have same structure and class as the original model which was used in 
+\code{run_mcmc}, in order to plug the posterior samples of the model 
+parameters to the right places. 
+It is also possible to input the original model for obtaining predictions 
+for past time points. In this case, set argument 
 \code{future} to \code{FALSE}.}
 
-\item{type}{Return predictions on \code{"mean"} 
-\code{"response"}, or  \code{"state"} level.}
+\item{nsim}{Positive integer defining number of samples to draw.}
 
-\item{nsim}{Number of samples to draw.}
+\item{type}{Type of predictions. Possible choices are 
+\code{"mean"} \code{"response"}, or  \code{"state"} level.}
 
 \item{future}{Default is \code{TRUE}, in which case predictions are for the 
 future, using posterior samples of (theta, alpha_T+1) i.e. the 
 posterior samples of hyperparameters and latest states. 
 Otherwise it is assumed that \code{model} corresponds to the original model.}
 
-\item{seed}{Seed for RNG.}
+\item{seed}{Seed for RNG (positive integer).}
 
 \item{...}{Ignored.}
 }
 \value{
-Data frame of predicted samples.
+A \code{data.frame} consisting of samples from the predictive 
+posterior distribution.
 }
 \description{
 Draw samples from the posterior predictive distribution for future 
@@ -52,7 +53,7 @@ from the posterior predictive distribution
  \eqn{p(\tilde y_1, \ldots, \tilde y_n | y_1,\ldots, y_n)}.
 }
 \examples{
-require("graphics")
+library("graphics")
 y <- log10(JohnsonJohnson)
 prior <- uniform(0.01, 0, 1)
 model <- bsm_lg(window(y, end = c(1974, 4)), sd_y = prior,
@@ -67,7 +68,7 @@ future_model$y <- ts(rep(NA, 25),
 pred <- predict(mcmc_results, future_model, type = "state", 
   nsim = 1000)
 
-require("dplyr")
+library("dplyr")
 sumr_fit <- as.data.frame(mcmc_results, variable = "states") \%>\%
   group_by(time, iter) \%>\% 
   mutate(signal = 
@@ -95,7 +96,7 @@ sumr_pred <- pred \%>\%
 #     lwr = quantile(value, 0.025), 
 #     upr = quantile(value, 0.975)) 
     
-require("ggplot2")
+library("ggplot2")
 rbind(sumr_fit, sumr_pred) \%>\% 
   ggplot(aes(x = time, y = mean)) + 
   geom_ribbon(aes(ymin = lwr, ymax = upr), 

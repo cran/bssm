@@ -5,19 +5,29 @@
 #' This function is rarely needed itself, and is mainly available for 
 #' testing and debugging purposes.
 #' 
-#' @param model Model to be approximated.
-#' @param max_iter Maximum number of iterations.
-#' @param conv_tol Tolerance parameter.
-#' @param iekf_iter For non-linear models, number of iterations in iterated EKF
-#' (defaults to 0).
+#' @param model Model to be approximated. Should be of class 
+#' \code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+#' \code{ssm_ung}, or \code{ssm_mng}, or \code{ssm_nlg}, i.e. non-gaussian or 
+#' non-linear \code{bssm_model}.
+#' @param max_iter Maximum number of iterations as a positive integer. 
+#' Default is 100 (although typically only few iterations are needed).
+#' @param conv_tol Positive tolerance parameter. Default is 1e-8. Approximation 
+#' is claimed to be converged when the mean squared difference of the modes of 
+#' is less than \code{conv_tol}.
+#' @param iekf_iter For non-linear models, non-negative number of iterations in 
+#' iterated EKF (defaults to 0, i.e. normal EKF). Used only for models of class 
+#' \code{ssm_nlg}.
 #' @param ... Ignored.
+#' @return Returns linear-Gaussian SSM of class \code{ssm_ulg} or 
+#' \code{ssm_mlg} which has the same conditional mode of p(alpha|y, theta) as 
+#'   the original model.
 #' @references 
-#' Koopman, S.J. and Durbin J. (2012). Time Series Analysis by State Space 
+#' Koopman, SJ and Durbin J (2012). Time Series Analysis by State Space 
 #' Methods. Second edition. Oxford: Oxford University Press.
 #' 
-#' Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based 
+#' Vihola, M, Helske, J, Franks, J. (2020). Importance sampling type estimators based 
 #' on approximate marginal Markov chain Monte Carlo. 
-#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+#' Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 #' @export
 #' @rdname gaussian_approx
 #' @examples 
@@ -25,6 +35,10 @@
 #' model <- bsm_ng(y = poisson_series, sd_slope = 0.01, sd_level = 0.1,
 #'   distribution = "poisson")
 #' out <- gaussian_approx(model)
+#' for(i in 1:7)
+#'  cat("Number of iterations used: ", i, ", y[1] = ",
+#'    gaussian_approx(model, max_iter = i, conv_tol = 0)$y[1], "\n", sep ="")
+#'    
 gaussian_approx <- function(model, max_iter, conv_tol, ...) {
   UseMethod("gaussian_approx", model)
 }
@@ -34,8 +48,9 @@ gaussian_approx <- function(model, max_iter, conv_tol, ...) {
 gaussian_approx.nongaussian <- function(model, max_iter = 100, 
   conv_tol = 1e-8, ...) {
   
-  model$max_iter <- max_iter
-  model$conv_tol <- conv_tol
+  model$max_iter <- check_integer(max_iter, "max_iter", positive = FALSE)
+  model$conv_tol <- check_positive_real(conv_tol, "conv_tol")
+  
   model$distribution <- pmatch(model$distribution,
     c("svm", "poisson", "binomial", "negative binomial", "gamma", "gaussian"), 
     duplicates.ok = TRUE) - 1
@@ -67,9 +82,9 @@ gaussian_approx.nongaussian <- function(model, max_iter = 100,
 gaussian_approx.ssm_nlg <- function(model, max_iter = 100, 
   conv_tol = 1e-8, iekf_iter = 0, ...) {
   
-  model$max_iter <- max_iter
-  model$conv_tol <- conv_tol
-  model$iekf_iter <- iekf_iter
+  model$max_iter <- check_integer(max_iter, "max_iter", positive = FALSE)
+  model$conv_tol <- check_positive_real(conv_tol, "conv_tol")
+  model$iekf_iter <- check_integer(iekf_iter, "iekf_iter")
   
   out <- gaussian_approx_model_nlg(t(model$y), model$Z, model$H, model$T, 
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 

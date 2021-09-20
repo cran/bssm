@@ -215,7 +215,7 @@ g_t(y_t | d_t + Z_t \alpha_t, x&#39;_t\beta, \phi, u_t),
 <li><p>Gamma distribution: <span class="math inline">\(g_t(y_t | d_t + Z_t \alpha_t, \phi, u_t) = \textrm{Gamma}(\exp( d_t + Z_t \alpha_t), \phi, u_t)\)</span>, where <span class="math inline">\(u_t \exp( d_t + Z_t \alpha_t)\)</span> is the expected value, <span class="math inline">\(\phi\)</span> is the shape parameter, and <span class="math inline">\(u_t\)</span> is a known offset term.</p></li>
 </ul>
 <p>For stochastic volatility model, there are two possible parameterizations available. In general for we have <span class="math display">\[
-y_t = x&#39;_t\beta + \sigma \exp(\alpha_t / 2)\epsilon_t, \quad \epsilon_t \sim N(0, 1),
+y_t = \sigma \exp(\alpha_t / 2)\epsilon_t, \quad \epsilon_t \sim N(0, 1),
 \]</span> and <span class="math display">\[
 \alpha_{t+1} = \mu + \rho (\alpha_t - \mu) + \sigma_{\eta} \eta_t,
 \]</span> with <span class="math inline">\(\alpha_1 \sim N(\mu, \sigma^2_{\eta} / (1-\rho^2))\)</span>. For identifiability purposes we must either choose <span class="math inline">\(\sigma=1\)</span> or <span class="math inline">\(\mu=0\)</span>. Although analytically identical, the parameterization with <span class="math inline">\(\mu\)</span> is often preferable in terms of computational efficiency.</p>
@@ -338,7 +338,7 @@ mcmc_bsm</code></pre>
 ## 
 ## Run time:
 ##    user  system elapsed 
-##    4.94    0.03    4.94</code></pre>
+##    4.87    0.04    4.87</code></pre>
 <p>Note that all MCMC algorithms of <code>bssm</code> output also state forecasts for the timepoint <span class="math inline">\(n + 1\)</span>, the summary statistics of this state is also shown in the output above.</p>
 <p>Here we use <code>ggplot2</code> <span class="citation">(<a href="#ref-ggplot2" role="doc-biblioref">Wickham 2016</a>)</span> package for the figures, so we transform the MCMC samples to <code>data.frame</code>:</p>
 <pre class="r"><code>suppressMessages(library(&quot;ggplot2&quot;))

@@ -7,23 +7,29 @@
 \description{
 This package contains functions for efficient Bayesian inference of state 
 space models, where model is assumed to be either
+}
+\details{
 * Exponential family state space models, where the state equation is linear 
   Gaussian, and the conditional observation density is either Gaussian, 
   Poisson, binomial, negative binomial or Gamma density. 
+  
 * Basic stochastic volatility model.
+
 * General non-linear model with Gaussian noise terms.
+
 * Model with continuous SDE dynamics. 
+
 For formal definition of the currently supported models and methods, as 
 well as some theory behind the IS-MCMC and \eqn{\psi}{psi}-APF, 
 see Helske and Vihola (2021), Vihola, Helske, Franks (2020) and the package 
 vignettes.
 }
 \references{
-Helske J, Vihola M (2021). “bssm: Bayesian Inference of Non-linear and 
-Non-Gaussian State Space Models in R.” 2101.08492, 
+Helske J, Vihola M (2021). bssm: Bayesian Inference of Non-linear and 
+Non-Gaussian State Space Models in R. ArXiv 2101.08492, 
 <URL: https://arxiv.org/abs/2101.08492>.
 
-Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based 
-on approximate marginal Markov chain Monte Carlo. 
-Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+Vihola, M, Helske, J, Franks, J. (2020). Importance sampling type estimators 
+based on approximate marginal Markov chain Monte Carlo. 
+Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 }

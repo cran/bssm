@@ -2,9 +2,9 @@
 #'
 #' Function \code{bootstrap_filter} performs a bootstrap filtering with 
 #' stratification resampling.
-#' @param model of class \code{bsm_lg}, \code{bsm_ng} or \code{svm}.
-#' @param particles Number of particles.
-#' @param seed Seed for RNG.
+#' @param model A model object of class \code{bssm_model}.
+#' @param particles Number of particles as a positive integer.
+#' @param seed Seed for RNG (non-negative integer).
 #' @param ... Ignored.
 #' @return List with samples (\code{alpha}) from the filtering distribution and 
 #' corresponding weights (\code{weights}), as well as filtered and predicted 
@@ -12,9 +12,9 @@
 #' \code{Ptt}), and estimated log-likelihood (\code{logLik}).
 #' @export
 #' @references 
-#' Gordon, N. J., Salmond, D. J., & Smith, A. F. M. (1993). 
-#' Novel approach to nonlinear/non-Gaussian Bayesian state estimation. 
-#' IEE Proceedings-F, 140, 107–113.
+#' Gordon, NJ, Salmond, DJ, Smith, AFM (1993) Novel approach to 
+#' nonlinear/non-Gaussian Bayesian state estimation. IEE Proceedings F, 
+#' 140(2), p. 107-113.
 #' @rdname bootstrap_filter
 bootstrap_filter <- function(model, particles, ...) {
   UseMethod("bootstrap_filter", model)
@@ -36,10 +36,22 @@ bootstrap_filter.gaussian <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
   if (missing(particles)) {
-    particles <- match.call(expand.dots = TRUE)$particles
-    if (!is.null(particles)) particles <- particles
+    nsim <- eval(match.call(expand.dots = TRUE)$nsim)
+    if (!is.null(nsim)) {
+      warning(paste0("Argument `nsim` is deprecated. Use argument `particles`",
+        "instead.", sep = " "))
+      particles <- nsim
+    }
   }
+  particles <- check_integer(particles, "particles")
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    length(model$a1) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
   out <- bsf(model, particles, seed, TRUE, model_type(model))
   colnames(out$at) <- colnames(out$att) <- colnames(out$Pt) <-
     colnames(out$Ptt) <- rownames(out$Pt) <- rownames(out$Ptt) <- 
@@ -74,7 +86,14 @@ bootstrap_filter.nongaussian <- function(model, particles,
       particles <- nsim
     }
   }
-  
+  particles <- check_integer(particles, "particles")
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    length(model$a1) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
   model$distribution <- 
     pmatch(model$distribution, 
       c("svm", "poisson", "binomial", "negative binomial", "gamma", "gaussian"),
@@ -104,6 +123,15 @@ bootstrap_filter.ssm_nlg <- function(model, particles,
       particles <- nsim
     }
   }
+  particles <- check_integer(particles, "particles")
+  
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    model$n_states * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
   out <- bsf_nlg(t(model$y), model$Z, model$H, model$T,
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1,
@@ -121,12 +149,13 @@ bootstrap_filter.ssm_nlg <- function(model, particles,
 
 #' @method bootstrap_filter ssm_sde
 #' @rdname bootstrap_filter
-#' @param L Integer defining the discretization level for SDE models.
+#' @param L Positive integer defining the discretization level for SDE models.
 #' @export
 bootstrap_filter.ssm_sde <- function(model, particles, L,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
-  if (L < 1) stop("Discretization level L must be larger than 0.")
+  if (!test_count(L, positive=TRUE)) 
+    stop("Discretization level L must be a positive integer.")
   
   if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
@@ -136,6 +165,15 @@ bootstrap_filter.ssm_sde <- function(model, particles, L,
       particles <- nsim
     }
   }
+  
+  particles <- check_integer(particles, "particles")
+  
+  nsamples <- length(model$y) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
   out <- bsf_sde(model$y, model$x0, model$positive,
     model$drift, model$diffusion, model$ddiffusion,

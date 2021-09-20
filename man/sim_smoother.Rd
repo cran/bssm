@@ -6,13 +6,13 @@
 \alias{sim_smoother.nongaussian}
 \title{Simulation Smoothing}
 \usage{
-sim_smoother(model, nsim, seed, use_antithetic = FALSE, ...)
+sim_smoother(model, nsim, seed, use_antithetic = TRUE, ...)
 
 \method{sim_smoother}{gaussian}(
   model,
   nsim = 1,
   seed = sample(.Machine$integer.max, size = 1),
-  use_antithetic = FALSE,
+  use_antithetic = TRUE,
   ...
 )
 
@@ -20,19 +20,23 @@ sim_smoother(model, nsim, seed, use_antithetic = FALSE, ...)
   model,
   nsim = 1,
   seed = sample(.Machine$integer.max, size = 1),
-  use_antithetic = FALSE,
+  use_antithetic = TRUE,
   ...
 )
 }
 \arguments{
-\item{model}{Model object.}
+\item{model}{Model of class \code{bsm_lg}, \code{ar1_lg}
+\code{ssm_ulg}, or \code{ssm_mlg}, or one of the non-gaussian models
+\code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+\code{ssm_ung}, or \code{ssm_mng}.}
 
-\item{nsim}{Number of independent samples.}
+\item{nsim}{Number of samples (positive integer).}
 
-\item{seed}{Seed for the random number generator.}
+\item{seed}{Seed for the random number generator (positive integer).}
 
-\item{use_antithetic}{Use an antithetic variable for location. 
-Default is \code{FALSE}. Ignored for multivariate models.}
+\item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic 
+variable for location in simulation smoothing. Ignored for \code{ssm_mng} 
+models.}
 
 \item{...}{Ignored.}
 }
@@ -49,8 +53,11 @@ For non-Gaussian/non-linear models, the simulation is based on the
 approximating Gaussian model.
 }
 \examples{
-model <- bsm_lg(rep(NA, 50), sd_level = uniform(1,0,5), 
-  sd_y = uniform(1,0,5))
-sim <- sim_smoother(model, 12)
+# only missing data, simulates from prior
+model <- bsm_lg(rep(NA, 25), sd_level = 1, 
+  sd_y = 1)
+# use antithetic variable for location
+sim <- sim_smoother(model, nsim = 4, use_antithetic = TRUE, seed = 1)
 ts.plot(sim[, 1, ])
+cor(sim[, 1, ])
 }

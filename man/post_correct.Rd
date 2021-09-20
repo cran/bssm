@@ -22,9 +22,9 @@ While the intended use assumes this is from approximate MCMC, it is not
 actually checked, i.e., it is also possible to input previous 
 (asymptotically) exact output.}
 
-\item{particles}{Number of particles for \eqn{\psi}-APF.}
+\item{particles}{Number of particles for \eqn{\psi}-APF (positive integer).}
 
-\item{threads}{Number of parallel threads.}
+\item{threads}{Number of parallel threads (positive integer, default is 1).}
 
 \item{is_type}{Type of IS-correction. Possible choices are 
 \code{"is3"} for simple importance sampling (weight is computed for each 
@@ -34,7 +34,7 @@ MCMC iteration independently),
 particles used forweight computations is proportional to the length of the 
 jump chain block.}
 
-\item{seed}{Seed for the random number generator.}
+\item{seed}{Seed for the random number generator  (positive integer).}
 }
 \value{
 List with suggested number of particles \code{N} and matrix 
@@ -49,7 +49,7 @@ weighted posterior, and returns updated MCMC output where components
  \code{Vt} are updated (depending on the original output type).
 }
 \examples{
-\dontrun{
+\donttest{
 set.seed(1)
 n <- 300
 x1 <- sin((2 * pi / 12) * 1:n)
@@ -68,7 +68,7 @@ y <- rbinom(n, size = u, plogis(0.5 * x1 + x2 + alpha))
 ts.plot(y / u)
 
 model <- ar1_ng(y, distribution = "binomial", 
-  rho = uniform(0.5, -1, 1), sigma = gamma(1, 2, 0.001),
+  rho = uniform(0.5, -1, 1), sigma = gamma_prior(1, 2, 0.001),
   mu = normal(0, 0, 10),
   xreg = cbind(x1,x2), beta = normal(c(0, 0), 0, 5),
   u = u)
@@ -111,7 +111,7 @@ p_exact <- predict(out_is2, model, type = "mean",
   group_by(time) \%>\%
   summarise(mean = mean(value))
 
-dplyr:: bind_rows(approx = p_approx, 
+dplyr::bind_rows(approx = p_approx, 
   exact = p_exact, .id = "method") \%>\%
   filter(time > 200) \%>\%
 ggplot(aes(time, mean, colour = method)) + 
@@ -120,12 +120,12 @@ ggplot(aes(time, mean, colour = method)) +
 }
 }
 \references{
-A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn, 
+A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn (2018). 
 Efficient implementation of Markov chain Monte Carlo when using an unbiased 
-likelihood estimator. Biometrika, 102, 2, 2015, Pages 295–313, 
+likelihood estimator. Biometrika, 102, 2, 295-313, 
 https://doi.org/10.1093/biomet/asu075
 
-Vihola, M, Helske, J, Franks, J. Importance sampling type estimators based 
+Vihola, M, Helske, J, Franks, J (2020). Importance sampling type estimators based 
 on approximate marginal Markov chain Monte Carlo. 
-Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 }

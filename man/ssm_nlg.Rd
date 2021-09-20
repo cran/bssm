@@ -28,15 +28,18 @@ ssm_nlg(
 \item{y}{Observations as multivariate time series (or matrix) of length 
 \eqn{n}.}
 
-\item{Z, H, T, R}{An external pointers for the C++ functions which
-define the corresponding model functions.}
+\item{Z, H, T, R}{An external pointers (object of class \code{externalptr}) for the 
+C++ functions which define the corresponding model functions.}
 
-\item{Z_gn, T_gn}{An external pointers for the C++ functions which
-define the gradients of the corresponding model functions.}
+\item{Z_gn, T_gn}{An external pointers (object of class \code{externalptr}) for 
+the C++ functions which define the gradients of the corresponding model 
+functions.}
 
-\item{a1}{Prior mean for the initial state as a vector of length m.}
+\item{a1}{Prior mean for the initial state as object of class 
+\code{externalptr}}
 
-\item{P1}{Prior covariance matrix for the initial state as m x m matrix.}
+\item{P1}{Prior covariance matrix for the initial state as object of class 
+\code{externalptr}}
 
 \item{theta}{Parameter vector passed to all model functions.}
 
@@ -46,11 +49,13 @@ functions.}
 \item{known_tv_params}{Matrix of known parameters passed to all model 
 functions.}
 
-\item{n_states}{Number of states in the model.}
+\item{n_states}{Number of states in the model (positive integer).}
 
-\item{n_etas}{Dimension of the noise term of the transition equation.}
+\item{n_etas}{Dimension of the noise term of the transition equation 
+(positive integer).}
 
-\item{log_prior_pdf}{An external pointer for the C++ function which
+\item{log_prior_pdf}{An external pointer (object of class 
+\code{externalptr}) for the C++ function which
 computes the log-prior density given theta.}
 
 \item{time_varying}{Optional logical vector of length 4, denoting whether 
@@ -58,7 +63,7 @@ the values of
 Z, H, T, and R vary with respect to time variable (given identical states).
 If used, this can speed up some computations.}
 
-\item{state_names}{Names for the states.}
+\item{state_names}{Vector containing names for the states.}
 }
 \value{
 Object of class \code{ssm_nlg}.
@@ -85,7 +90,7 @@ the user, as you must provide the several small C++ snippets which define the
 model structure. See examples in the vignette.
 }
 \examples{
-\dontrun{
+\donttest{ # Takes a while on CRAN
 set.seed(1)
 n <- 50
 x <- y <- numeric(n)
@@ -95,7 +100,7 @@ for(i in 1:(n-1)) {
  y[i+1] <- rnorm(1, exp(x[i+1]), 0.1)
 }
 
-pntrs <- nlg_example_models("sin_exp")
+pntrs <- cpp_example_model("nlg_sin_exp")
 
 model_nlg <- ssm_nlg(y = y, a1 = pntrs$a1, P1 = pntrs$P1, 
   Z = pntrs$Z_fn, H = pntrs$H_fn, T = pntrs$T_fn, R = pntrs$R_fn, 
@@ -104,7 +109,7 @@ model_nlg <- ssm_nlg(y = y, a1 = pntrs$a1, P1 = pntrs$P1,
   log_prior_pdf = pntrs$log_prior_pdf,
   n_states = 1, n_etas = 1, state_names = "state")
 
-out <- ekf(model_nlg, 100)
+out <- ekf(model_nlg, iekf_iter = 100)
 ts.plot(cbind(x, out$at[1:n], out$att[1:n]), col = 1:3)
 }
 }

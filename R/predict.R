@@ -6,30 +6,31 @@
 #' from the posterior predictive distribution
 #'  \eqn{p(\tilde y_1, \ldots, \tilde y_n | y_1,\ldots, y_n)}.
 #'
-#' @param object mcmc_output object obtained from 
+#' @param object Results object of class \code{mcmc_output} from 
 #' \code{\link{run_mcmc}}
-#' @param type Return predictions on \code{"mean"} 
-#' \code{"response"}, or  \code{"state"} level. 
-#' @param model Model for future observations. 
-#' Should have same structure as the original model which was used in MCMC,
-#' in order to plug the posterior samples of the model parameters to the right 
-#' places. 
-#' It is also possible to input the original model, which can be useful for 
-#' example for posterior predictive checks. In this case, set argument 
+#' @param model A \code{bssm_model} object.. 
+#' Should have same structure and class as the original model which was used in 
+#' \code{run_mcmc}, in order to plug the posterior samples of the model 
+#' parameters to the right places. 
+#' It is also possible to input the original model for obtaining predictions 
+#' for past time points. In this case, set argument 
 #' \code{future} to \code{FALSE}.
-#' @param nsim Number of samples to draw.
+#' @param type Type of predictions. Possible choices are 
+#' \code{"mean"} \code{"response"}, or  \code{"state"} level. 
+#' @param nsim Positive integer defining number of samples to draw.
 #' @param future Default is \code{TRUE}, in which case predictions are for the 
 #' future, using posterior samples of (theta, alpha_T+1) i.e. the 
 #' posterior samples of hyperparameters and latest states. 
 #' Otherwise it is assumed that \code{model} corresponds to the original model.
-#' @param seed Seed for RNG.
+#' @param seed Seed for RNG (positive integer).
 #' @param ... Ignored.
-#' @return Data frame of predicted samples.
+#' @return A \code{data.frame} consisting of samples from the predictive 
+#' posterior distribution.
 #' @method predict mcmc_output
 #' @aliases predict predict.mcmc_output
 #' @export
 #' @examples
-#' require("graphics")
+#' library("graphics")
 #' y <- log10(JohnsonJohnson)
 #' prior <- uniform(0.01, 0, 1)
 #' model <- bsm_lg(window(y, end = c(1974, 4)), sd_y = prior,
@@ -44,7 +45,7 @@
 #' pred <- predict(mcmc_results, future_model, type = "state", 
 #'   nsim = 1000)
 #' 
-#' require("dplyr")
+#' library("dplyr")
 #' sumr_fit <- as.data.frame(mcmc_results, variable = "states") %>%
 #'   group_by(time, iter) %>% 
 #'   mutate(signal = 
@@ -72,7 +73,7 @@
 #' #     lwr = quantile(value, 0.025), 
 #' #     upr = quantile(value, 0.975)) 
 #'     
-#' require("ggplot2")
+#' library("ggplot2")
 #' rbind(sumr_fit, sumr_pred) %>% 
 #'   ggplot(aes(x = time, y = mean)) + 
 #'   geom_ribbon(aes(ymin = lwr, ymax = upr), 
@@ -114,8 +115,16 @@
 #'     time = time(model$y)))    
 #' 
 #' 
-predict.mcmc_output <- function(object, model, type = "response", nsim, 
+predict.mcmc_output <- function(object, model, nsim, type = "response",  
   future = TRUE, seed = sample(.Machine$integer.max, size = 1), ...) {
+  
+  if (!inherits(model, "bssm_model")) {
+    stop("Argument 'model' should be of class 'bssm_model'. ")
+  }
+  nsim <- check_integer(nsim, "nsim")
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  
+  if (!test_flag(future)) stop("Argument 'future' should be TRUE or FALSE. ")
   
   type <- match.arg(type, c("response", "mean", "state"))
   
@@ -131,12 +140,26 @@ predict.mcmc_output <- function(object, model, type = "response", nsim,
   }
   if (nsim < 1) stop("Number of samples 'nsim' should be at least one.")
   
+  if (attr(object, "model_type") %in% c("bsm_lg", "bsm_ng")) {
+    object$theta[, 1:(ncol(object$theta) - length(model$beta))] <- 
+      log(object$theta[, 1:(ncol(object$theta) - length(model$beta))])
+  } else {
+    if (attr(object, "model_type") == "ar1_lg") {
+      object$theta[, c("sigma", "sd_y")] <- 
+        log(object$theta[, c("sigma", "sd_y")])
+    } else {
+      if (attr(object, "model_type") == "ar1_ng") {
+        disp <- ifelse(
+          object$distribution %in% c("negative binomial", "gamma"), 
+          "phi", NULL)
+        object$theta[, c("sigma", disp)] <- 
+          log(object$theta[, c("sigma", disp)])
+      }
+    }
+  }
+  
   if (future) {
     
-    if (attr(object, "model_type") %in% c("bsm_lg", "bsm_ng")) {
-      object$theta[, 1:(ncol(object$theta) - length(model$beta))] <- 
-        log(object$theta[, 1:(ncol(object$theta) - length(model$beta))])
-    }
     w <- object$counts * 
       (if (object$mcmc_type %in% paste0("is", 1:3)) object$weights else 1)
     idx <- sample(seq_len(nrow(object$theta)), size = nsim, prob = w, 
@@ -249,10 +272,6 @@ predict.mcmc_output <- function(object, model, type = "response", nsim,
       if (is.null(variables)) 
         variables <- paste("Series", 1:max(1, ncol(model$y)))
       
-      if (attr(object, "model_type") %in% c("bsm_lg", "bsm_ng")) {
-        object$theta[, 1:(ncol(object$theta) - length(model$beta))] <- 
-          log(object$theta[, 1:(ncol(object$theta) - length(model$beta))])
-      }
       theta <- t(object$theta[idx, ])
       states <- aperm(states, c(2, 1, 3))
       

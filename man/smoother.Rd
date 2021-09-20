@@ -2,15 +2,24 @@
 % Please edit documentation in R/smoother.R
 \name{fast_smoother}
 \alias{fast_smoother}
+\alias{fast_smoother.gaussian}
 \alias{smoother}
+\alias{smoother.gaussian}
 \title{Kalman Smoothing}
 \usage{
 fast_smoother(model, ...)
 
+\method{fast_smoother}{gaussian}(model, ...)
+
 smoother(model, ...)
+
+\method{smoother}{gaussian}(model, ...)
 }
 \arguments{
-\item{model}{Model model.}
+\item{model}{Model to be approximated. Should be of class 
+\code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+\code{ssm_ung}, or \code{ssm_mng}, or \code{ssm_nlg}, i.e. non-gaussian or 
+non-linear \code{bssm_model}.}
 
 \item{...}{Ignored.}
 }
@@ -26,4 +35,19 @@ computes only smoothed estimates of the states, and function
 \details{
 For non-Gaussian models, the smoothing is based on the approximate Gaussian 
 model.
+}
+\examples{
+model <- bsm_lg(Nile, 
+  sd_level = tnormal(120, 100, 20, min = 0),
+  sd_y = tnormal(50, 50, 25, min = 0),
+  a1 = 1000, P1 = 200)
+ts.plot(cbind(Nile, fast_smoother(model)), col = 1:2)
+model <- bsm_lg(Nile, 
+  sd_y = tnormal(120, 100, 20, min = 0),
+  sd_level = tnormal(50, 50, 25, min = 0),
+  a1 = 1000, P1 = 500^2)
+
+out <- smoother(model)
+ts.plot(cbind(Nile, out$alphahat), col = 1:2)
+ts.plot(sqrt(out$Vt[1, 1, ]))
 }

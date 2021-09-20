@@ -40,15 +40,15 @@ bootstrap_filter(model, particles, ...)
 )
 }
 \arguments{
-\item{model}{of class \code{bsm_lg}, \code{bsm_ng} or \code{svm}.}
+\item{model}{A model object of class \code{bssm_model}.}
 
-\item{particles}{Number of particles.}
+\item{particles}{Number of particles as a positive integer.}
 
 \item{...}{Ignored.}
 
-\item{seed}{Seed for RNG.}
+\item{seed}{Seed for RNG (non-negative integer).}
 
-\item{L}{Integer defining the discretization level for SDE models.}
+\item{L}{Positive integer defining the discretization level for SDE models.}
 }
 \value{
 List with samples (\code{alpha}) from the filtering distribution and 
@@ -79,7 +79,7 @@ ts.plot(cbind(poisson_series, exp(out$att[, 1])), col = 1:2)
 
 }
 \references{
-Gordon, N. J., Salmond, D. J., & Smith, A. F. M. (1993). 
-Novel approach to nonlinear/non-Gaussian Bayesian state estimation. 
-IEE Proceedings-F, 140, 107–113.
+Gordon, NJ, Salmond, DJ, Smith, AFM (1993) Novel approach to 
+nonlinear/non-Gaussian Bayesian state estimation. IEE Proceedings F, 
+140(2), p. 107-113.
 }

@@ -51,11 +51,12 @@ or a m x k x n array.}
 \item{update_fn}{Function which returns list of updated model 
 components given input vector theta. This function should take only one 
 vector argument which is used to create list with elements named as
-\code{Z}, \code{H} \code{T}, \code{R}, \code{a1}, \code{P1}, \code{D}, 
-and \code{C},
-where each element matches the dimensions of the original model.
-If any of these components is missing, it is assumed to be 
-onstant wrt. theta.}
+\code{Z}, \code{H}, \code{T}, \code{R}, \code{a1}, \code{P1}, \code{D}, and
+\code{C}, where each element matches the dimensions of the original model 
+It's best to check the internal dimensions with \code{str(model_object)} as 
+the dimensions of input arguments can differ from the final dimensions.
+If any of these components is missing, it is assumed to be constant wrt. 
+theta.}
 
 \item{prior_fn}{Function which returns log of prior density 
 given input vector theta.}
@@ -96,7 +97,10 @@ It might be useful to first construct the model without updating function
 
 data("GlobalTemp", package = "KFAS")
 model_temp <- ssm_mlg(GlobalTemp, H = matrix(c(0.15,0.05,0, 0.05), 2, 2), 
-  R = 0.05, Z = matrix(1, 2, 1), T = 1, P1 = 10)
-ts.plot(cbind(model_temp$y, smoother(model_temp)$alphahat),col=1:3)
+  R = 0.05, Z = matrix(1, 2, 1), T = 1, P1 = 10,
+  state_names = "temperature",
+  # using default values, but being explicit for testing purposes
+  D = matrix(0, 2, 1), C = matrix(0, 1, 1))
+ts.plot(cbind(model_temp$y, smoother(model_temp)$alphahat), col = 1:3)
 
 }

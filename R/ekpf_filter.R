@@ -3,9 +3,9 @@
 #' Function \code{ekpf_filter} performs a extended Kalman particle filtering 
 #' with stratification resampling, based on Van Der Merwe et al (2001).
 #'
-#' @param object of class \code{ssm_nlg}.
-#' @param particles Number of particles.
-#' @param seed Seed for RNG.
+#' @param object Model of class \code{ssm_nlg}.
+#' @param particles Number of particles as a positive integer.
+#' @param seed Seed for RNG  (positive integer).
 #' @param ... Ignored.
 #' @return A list containing samples, filtered estimates and the 
 #' corresponding covariances, weights, and an estimate of log-likelihood.
@@ -21,7 +21,7 @@ ekpf_filter <- function(object, particles, ...) {
 #' @export
 #' @rdname ekpf_filter
 #' @examples
-#' \dontrun{
+#' \donttest{ # Takes a while
 #' set.seed(1)
 #' n <- 50
 #' x <- y <- numeric(n)
@@ -31,7 +31,7 @@ ekpf_filter <- function(object, particles, ...) {
 #'  y[i+1] <- rnorm(1, exp(x[i+1]), 0.1)
 #' }
 #' 
-#' pntrs <- nlg_example_models("sin_exp")
+#' pntrs <- cpp_example_model("nlg_sin_exp")
 #' 
 #' model_nlg <- ssm_nlg(y = y, a1 = pntrs$a1, P1 = pntrs$P1, 
 #'   Z = pntrs$Z_fn, H = pntrs$H_fn, T = pntrs$T_fn, R = pntrs$R_fn, 
@@ -40,9 +40,9 @@ ekpf_filter <- function(object, particles, ...) {
 #'   log_prior_pdf = pntrs$log_prior_pdf,
 #'   n_states = 1, n_etas = 1, state_names = "state")
 #'
-#' out <- ekpf_filter(model_nlg, 100)
+#' out <- ekpf_filter(model_nlg, particles = 100)
 #' ts.plot(cbind(x, out$at[1:n], out$att[1:n]), col = 1:3)
-#' }
+#'}
 ekpf_filter.ssm_nlg <- function(object, particles, 
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
@@ -54,6 +54,16 @@ ekpf_filter.ssm_nlg <- function(object, particles,
       particles <- nsim
     }
   }
+  particles <- check_integer(particles, "particles")
+  
+  nsamples <- ifelse(!is.null(nrow(object$y)), nrow(object$y), 
+    length(object$y)) * object$n_states * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
   out <- ekpf(t(object$y), object$Z, object$H, object$T, 
     object$R, object$Z_gn, object$T_gn, object$a1, object$P1, 

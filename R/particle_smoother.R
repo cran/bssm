@@ -9,24 +9,23 @@
 #' See one of the vignettes for \eqn{\psi}-APF in case of nonlinear models.
 #'
 #' @importFrom stats cov
-#' @param model Model.
-#' @param particles Number of samples for particle filter.
+#' @inheritParams bootstrap_filter
 #' @param method Choice of particle filter algorithm. 
 #' For Gaussian and non-Gaussian models with linear dynamics,
 #' options are \code{"bsf"} (bootstrap particle filter, default for 
 #' non-linear models) 
 #' and \code{"psi"} (\eqn{\psi}-APF, the default for other models), and 
-#' for non-linear models options \code{"ekf"} (extended Kalman particle filter) 
+#' for non-linear models option \code{"ekf"} (extended Kalman particle filter) 
 #' is also available.
-#' @param max_iter Maximum number of iterations used in Gaussian approximation. 
-#' Used \eqn{\psi}-APF.
-#' @param conv_tol Tolerance parameter used in Gaussian approximation. 
-#' Used \eqn{\psi}-APF.
-#' @param iekf_iter If zero (default), first approximation for non-linear 
-#' Gaussian models is obtained from extended Kalman filter. If 
-#' \code{iekf_iter > 0}, iterated extended Kalman filter is used with 
-#' \code{iekf_iter} iterations.
-#' @param seed Seed for RNG.
+#' @param max_iter Maximum number of iterations used in Gaussian approximation,
+#' as a positive integer. 
+#' Default is 100 (although typically only few iterations are needed).
+#' @param conv_tol Positive tolerance parameter used in Gaussian approximation. 
+#' Default is 1e-8.
+#' @param iekf_iter Non-negative integer. If zero (default), first 
+#' approximation for non-linear Gaussian models is obtained from extended 
+#' Kalman filter. If \code{iekf_iter > 0}, iterated extended Kalman filter is
+#' used with \code{iekf_iter} iterations.
 #' @param ... Ignored.
 #' @return List with samples (\code{alpha}) from the smoothing distribution 
 #' and corresponding weights (\code{weights}),
@@ -34,24 +33,24 @@
 #'  of the states and 
 #'  estimated log-likelihood (\code{logLik}).
 #' @references 
-#' [1] Gordon, N. J., Salmond, D. J., & Smith, A. F. M. (1993). 
+#' [1] Gordon, NJ, Salmond, DJ, Smith, AFM (1993). 
 #' Novel approach to nonlinear/non-Gaussian Bayesian state estimation. 
-#' IEE Proceedings-F, 140, 107–113.
+#' IEE Proceedings-F, 140, 107-113.
 #' 
 #' [2] Vihola, M, Helske, J, Franks, J. Importance sampling type estimators 
 #' based on approximate marginal Markov chain Monte Carlo. 
-#' Scand J Statist. 2020; 1– 38. https://doi.org/10.1111/sjos.12492
+#' Scand J Statist. 2020; 1-38. https://doi.org/10.1111/sjos.12492
 #' 
-#' [3] Van Der Merwe, R., Doucet, A., De Freitas, N., & Wan, E. A. (2001). 
+#' [3] Van Der Merwe, R, Doucet, A, De Freitas, N,  Wan, EA (2001). 
 #' The unscented particle filter. 
-#' In Advances in neural information processing systems (pp. 584-590).
+#' In Advances in neural information processing systems, p 584-590.
 #' 
-#' [4] Jazwinski, A. 1970. Stochastic Processes and Filtering Theory. 
+#' [4] Jazwinski, A 1970. Stochastic Processes and Filtering Theory. 
 #' Academic Press.
 #' 
-#' [5] Kitagawa, G. (1996). Monte Carlo filter and smoother for non-Gaussian 
+#' [5] Kitagawa, G (1996). Monte Carlo filter and smoother for non-Gaussian 
 #' nonlinear state space models. 
-#' Journal of Computational and Graphical Statistics, 5, 1–25.
+#' Journal of Computational and Graphical Statistics, 5, 1-25.
 #' @export
 #' @rdname particle_smoother
 particle_smoother <- function(model, particles, ...) {
@@ -83,6 +82,16 @@ particle_smoother.gaussian <- function(model, particles,  method = "psi",
       particles <- nsim
     }
   }
+  
+  particles <- check_integer(particles, "particles")
+  
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    length(model$a1) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   
   if (method == "psi") {
     out <- list()
@@ -128,11 +137,20 @@ particle_smoother.nongaussian <- function(model, particles,
       particles <- nsim
     }
   }
+  particles <- check_integer(particles, "particles")
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    length(model$a1) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  
+  model$max_iter <- check_integer(max_iter, "max_iter", positive = FALSE)
+  model$conv_tol <- check_positive_real(conv_tol, "conv_tol")
   
   method <- match.arg(method, c("bsf", "psi"))
-  
-  model$max_iter <- max_iter
-  model$conv_tol <- conv_tol
+
   model$distribution <- pmatch(model$distribution,
     c("svm", "poisson", "binomial", "negative binomial", "gamma", "gaussian"), 
     duplicates.ok = TRUE) - 1
@@ -168,6 +186,18 @@ particle_smoother.ssm_nlg <- function(model, particles,
       particles <- nsim
     }
   }
+  particles <- check_integer(particles, "particles")
+  
+  nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
+    model$n_states * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  max_iter <- check_integer(max_iter, "max_iter", positive = FALSE)
+  conv_tol <- check_positive_real(conv_tol, "conv_tol")
+  iekf_iter <- check_integer(iekf_iter, "iekf_iter", positive = FALSE)
   
   method <- match.arg(method, c("bsf", "psi", "ekf"))
   
@@ -203,7 +233,7 @@ particle_smoother.ssm_nlg <- function(model, particles,
 
 #' @rdname particle_smoother
 #' @method particle_smoother ssm_sde
-#' @param L Integer defining the discretization level.
+#' @param L Positive integer defining the discretization level for SDE model.
 #' @export
 particle_smoother.ssm_sde <- function(model, particles, L, 
   seed = sample(.Machine$integer.max, size = 1), ...) {
@@ -218,7 +248,13 @@ particle_smoother.ssm_sde <- function(model, particles, L,
       particles <- nsim
     }
   }
-  
+  particles <- check_integer(particles, "particles")
+  nsamples <- length(model$y) * particles
+  if (particles > 100 & nsamples > 1e12) {
+    warning(paste("Trying to sample ", nsamples, 
+      "particles, you might run out of memory."))
+  }
+  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
   out <-  bsf_smoother_sde(model$y, model$x0, model$positive, 
     model$drift, model$diffusion, model$ddiffusion, 
     model$prior_pdf, model$obs_pdf, model$theta, 

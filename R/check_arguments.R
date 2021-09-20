@@ -3,10 +3,10 @@ check_y <- function(x, multivariate = FALSE, distribution = "gaussian") {
   if (any(!is.na(x))) {
     if (multivariate) {
       if (!is.matrix(x)) {
-        stop("Argument y must be a matrix or multivariate ts object.")
+        stop("Argument 'y' must be a matrix or multivariate ts object.")
       }
       if (nrow(x) < 2) {
-        stop("Number of rows in y, i.e. number of time points, must be > 1. ")
+        stop("Number of rows in 'y', i.e. number of time points, must be > 1. ")
       }
     } else {
       if (!is.vector(x) || is.list(x)) {
@@ -15,11 +15,11 @@ check_y <- function(x, multivariate = FALSE, distribution = "gaussian") {
             dim(x) <- NULL
           } else {
             if(!is.null(dim(x)) && ncol(x) > 1) {
-              stop("Argument y must be a vector or univariate ts object.")
+              stop("Argument 'y' must be a vector or univariate ts object.")
             }
           }
         } else {
-          stop("Argument y must be a vector or univariate ts object.")
+          stop("Argument 'y' must be a vector or univariate ts object.")
         }
       }
       if (length(x) < 2) {
@@ -38,7 +38,20 @@ check_y <- function(x, multivariate = FALSE, distribution = "gaussian") {
       }
     }
     if (any(is.infinite(x))) {
-      stop("Argument y must contain only finite or NA values.")
+      stop("Argument 'y' must contain only finite or NA values.")
+    }
+  }
+  x
+}
+check_period <- function(x, n) {
+  if (!test_int(x)) {
+    stop("Argument 'period' should be a single integer. ")
+  } else {
+    if (x < 3) {
+      stop("Argument 'period' should be a integer larger than 2. ")
+    }
+    if (x >= n) {
+      stop("Period should be less than the number of time points.")
     }
   }
   x
@@ -67,7 +80,7 @@ check_sd <- function(x, type, add_prefix = TRUE) {
     param <- type
   }
   if (length(x) != 1) {
-    stop(paste0("Argument ", param, " must be of length one."))
+    stop(paste0("Argument ", param, " must be of length one (scalar or bssm_prior)."))
   }
   if (!is.numeric(x)) {
     stop(paste0("Argument ", param, " must be numeric."))
@@ -129,35 +142,44 @@ check_phi <- function(x, distribution) {
     stop("Parameter 'phi' must be non-negative.")
   }
 }
-check_u <- function(x, multivariate = FALSE) {
+check_u <- function(x, y, multivariate = FALSE) {
   if (any(x < 0)) {
     stop("All values of 'u' must be non-negative.")
   }
   if (multivariate) {
+    if (length(x) == 1) x <- matrix(x, nrow(y), ncol(y))
+    
     if (!is.matrix(x) && !is.numeric(x)) {
       stop("Argument 'u' must be a numeric matrix or multivariate ts object.")
     }
+    if(!identical(dim(y), dim(x))) 
+      stop("Dimensions of 'y' and 'u' do not match. ")
   } else {
+    if (length(x) == 1) x <- rep(x, length(y))
     if (!(is.vector(x) && !is.list(x)) && !is.numeric(x)) {
       stop("Argument 'u' must be a numeric vector or ts object.")
     }
+    if (length(x) != length(y))
+      stop("Lengths of 'u' and 'y' do not match.")
+    dim(x) <- NULL
   }
   if (any(is.infinite(x))) {
     stop("Argument 'u' must contain only finite values.")
   }
+  x
 }
+
 check_prior <- function(x, name) {
   if (!is_prior(x) && !is_prior_list(x)) {
     stop(paste(name, "must be of class 'bssm_prior' or 'bssm_prior_list'."))
   }
 }
 
-check_target <- function(target) {
-  if (length(target) > 1 || target >= 1 || target <= 0) {
-    stop("Argument 'target' must be on interval (0, 1).")
+check_prop <- function(x, name = "target") {
+  if (length(x) > 1 || x >= 1 || x <= 0) {
+    stop(paste0("Argument '", name, "' must be on interval (0, 1)."))
   }
 }
-
 
 check_D <- function(x, p, n) {
   if (missing(x) || is.null(x)) {
@@ -336,6 +358,26 @@ check_H <- function(x, p, n, multivariate = FALSE) {
     } else {
       dim(x) <- c(p, p, (n - 1) * (max(dim(x)[3], 0, na.rm = TRUE) > 1) + 1)
     }
+  }
+  x
+}
+
+
+check_integer <- function(x, name = "particles", positive = TRUE, max = 1e7) {
+  if (!test_count(x, positive)) {
+    stop(paste0("Argument '", name, "' should be a ",
+      ifelse(positive, "positive", "non-negative"), " integer. "))
+  }
+  if (x > max) {
+    stop(paste0("I don't believe you want '", name, "' > ", max,
+      ". If you really do, file an issue at Github."))
+  }
+  as.integer(x)
+}
+
+check_positive_real <- function(x, name) {
+  if (!test_double(x, lower=0, finite = TRUE, any.missing = FALSE, len = 1)) {
+    stop(paste0("Argument '", name, "' should be positive real value."))
   }
   x
 }
