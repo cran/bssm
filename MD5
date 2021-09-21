@@ -1,6 +1,6 @@
-91b137c59ef43205c8fe5e8b85f152ec *DESCRIPTION
+fcb37c241f791fa79009b1decfab4c5f *DESCRIPTION
 276a0624372877bfeaead294f88ef047 *NAMESPACE
-77d4200dfa3bca84a33feed5aa336b1f *NEWS
+0d13187096f4ccfb835d901b56e48f4c *NEWS
 857549b7b51a36d438c211c115a78573 *R/RcppExports.R
 f4b6230cb6e37e42cdb8c981bad5d91c *R/approx.R
 07ea8e885bddc4353452dbe6e52125dc *R/as.data.frame.mcmc_output.R
@@ -19,7 +19,7 @@ b31f71b131bd1107c3c19eaa3519fc6c *R/loglik.R
 9c23ed47d206a08896b7c6af745208bd *R/models.R
 0588214bf41075ff444a7812535f08ec *R/particle_smoother.R
 ef757c4d074585f745063ce8bbe27b29 *R/post_correction.R
-26f388935d0c5a49b07cb7dac2b5cfa1 *R/predict.R
+b7a7bb40f55705a6ca059dfb29bd3168 *R/predict.R
 61984944a793de71ae971233e7b13ee6 *R/print_mcmc.R
 b2a4c40cf357d267879a94690c69a4be *R/priors.R
 acad1c9c8bd3e6f8f38ee741f91db048 *R/run_mcmc.R
@@ -33,16 +33,16 @@ c22256983cdd4592110397c1a10a3d8f *data/drownings.rda
 4609041db77da58621462a187cd256d2 *inst/CITATION
 398eaa3c62b6444ec018de912dcd07e4 *inst/doc/bssm.R
 b5b7abac7ed9b17ae17ea70d4fd0048b *inst/doc/bssm.Rmd
-9c8350bb816f4a9e4acd58f0bcd84c3d *inst/doc/bssm.html
+4813f787fd314591d47724afb349ac55 *inst/doc/bssm.html
 94a649377e6faeb1f3011cfb063c57a3 *inst/doc/growth_model.R
 fc231ad276443e8bbac7d5a60054b089 *inst/doc/growth_model.Rmd
-79bfb8221a2f020d8b7b5e512736bdd6 *inst/doc/growth_model.html
+4e43774bd843fd8d4b60dfc628fcba01 *inst/doc/growth_model.html
 1727255d404cc2363ba738b7f1fdf6e4 *inst/doc/psi_pf.R
 8b13517dc78e33fc0a1a40d5811d139a *inst/doc/psi_pf.Rmd
 32355e303cf99c33f834ed3b446a0e61 *inst/doc/psi_pf.html
 b615ac6ab0a2f8274048cf84d5cb0943 *inst/doc/sde_model.R
 01186e23766b9023075baa5312adafb7 *inst/doc/sde_model.Rmd
-ab208dc50e814fc9154763030b95c431 *inst/doc/sde_model.html
+4316b742483966745096ccf5e531b7c6 *inst/doc/sde_model.html
 e03dd38af5c96d71cc44103dd5909e7b *man/ar1_lg.Rd
 4fb6ca8b5089740f49052a09ebaab33a *man/ar1_ng.Rd
 40089f8d86b0608911c4469af9f30759 *man/as.data.frame.mcmc_output.Rd
@@ -67,7 +67,7 @@ c9e366a40c4aef32f66a186cb8fa3c6e *man/importance_sample.Rd
 0effe8d8c8efd03074d01f77e37dccab *man/particle_smoother.Rd
 3f2d07f3c0cda186d625c829a81daf9e *man/poisson_series.Rd
 78332ff2cb8d8bd9b52600489b5a0838 *man/post_correct.Rd
-c3d5901cb6d0e97c3327faab57c9cbf9 *man/predict.mcmc_output.Rd
+b14a1b6f6fbb4a1d139a647dd6b7316f *man/predict.mcmc_output.Rd
 8c539094cd27c2514c6cad0a52eef2d7 *man/print.mcmc_output.Rd
 1f94255275b2b105d499335abb44ebf9 *man/run_mcmc.Rd
 17bd6628ae7a4ba33ebd4179754149f9 *man/sim_smoother.Rd
@@ -163,7 +163,7 @@ ad72cd916f7d0976c167629a581934df *tests/testthat/test_is.R
 00254e99ea46e5f7582fab0aa0617cd5 *tests/testthat/test_models.R
 9a84799b515dd51b306b3eb8cf3f9286 *tests/testthat/test_particle_smoother.R
 cf3e33bb3123e2e08a5f5fbe3746367e *tests/testthat/test_post_correct.R
-608c7e7c9f3f7b3e5c446e33fd974b25 *tests/testthat/test_predict.R
+2a392117a8bd2c43ba09be00438fb631 *tests/testthat/test_predict.R
 626d87df4051be26dc6e5379040ca34d *tests/testthat/test_sde.R
 d779bd7d01d8d8118c7920564e3f3775 *tests/testthat/test_sim_smoother.R
 b5b7abac7ed9b17ae17ea70d4fd0048b *vignettes/bssm.Rmd

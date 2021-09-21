@@ -252,7 +252,7 @@ arma::vec T_fn(const unsigned int t, const arma::vec&amp; alpha, const arma::vec
 <p>After creating the file for <code>C++</code> functions, you need to compile the file using <code>Rcpp</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>:</p>
 <pre class="r"><code>Rcpp::sourceCpp(&quot;ssm_nlg_template.cpp&quot;)</code></pre>
 <pre><code>## Warning in normalizePath(path.expand(path), winslash, mustWork): path[1]=&quot;C:/
-## Users/jovetale/AppData/Local/Temp/RtmpWOBYje/Rbuild400cca75482/bssm/
+## Users/jovetale/AppData/Local/Temp/RtmpiWYaJW/Rbuild79a035b629e1/bssm/
 ## vignettes/../inst/include&quot;: The system cannot find the file specified</code></pre>
 <pre class="r"><code>pntrs &lt;- create_xptrs()</code></pre>
 <p>This takes a few seconds. let’s define our initial guess for <span class="math inline">\(\theta\)</span>, the logarithms of the standard deviations of observational and process level noise, and define the prior distribution for <span class="math inline">\(\alpha_1(we use log-scale in sampling for efficiency reasons, but define priors for the standard deviations, see the template file)\)</span>:</p>
@@ -359,10 +359,10 @@ ggplot(p_summary, aes(x = time, y = mean)) +
 <p>In this example, EKF approximation performs well compared to exact method, while being considerably faster:</p>
 <pre class="r"><code>mcmc_is$time</code></pre>
 <pre><code>##    user  system elapsed 
-##   26.88    0.19   26.80</code></pre>
+##   27.03    0.69   26.82</code></pre>
 <pre class="r"><code>mcmc_ekf$time</code></pre>
 <pre><code>##    user  system elapsed 
-##    3.28    0.00    3.28</code></pre>
+##    3.27    0.00    3.29</code></pre>
 </div>
 <div id="appendix" class="section level2">
 <h2>Appendix</h2>
