@@ -36,14 +36,15 @@ out <- run_mcmc(sde_model, iter = 2e4, particles = 30, L_c = 2, L_f = 5, threads
 ## -----------------------------------------------------------------------------
 suppressMessages(library("ggplot2"))
 suppressMessages(library("dplyr"))
+suppressMessages(library("diagis"))
 
 d <- as.data.frame(out, variable = "states")
 
 state_fit <- d %>% 
   group_by(time) %>%
-  summarise(state = mean(value), 
-    lwr = quantile(value, 0.025), 
-    upr = quantile(value, 0.975))
+  summarise(state = weighted_mean(value, weight), 
+    lwr = weighted_quantile(value, weight, 0.025), 
+    upr = weighted_quantile(value, weight, 0.975))
 
 ggplot(state_fit, aes(x = time, y = state)) + 
   geom_ribbon(aes(ymin = lwr, ymax = upr), 

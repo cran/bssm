@@ -2,9 +2,14 @@
 #'
 #' Function \code{bootstrap_filter} performs a bootstrap filtering with 
 #' stratification resampling.
+#' 
 #' @param model A model object of class \code{bssm_model}.
-#' @param particles Number of particles as a positive integer.
-#' @param seed Seed for RNG (non-negative integer).
+#' @param particles Number of particles as a positive integer. Suitable values 
+#' depend on the model and the data, and while larger values provide more 
+#' accurate estimates, the run time also increases with respect to the 
+#' number of particles, so it is generally a good idea to test the filter first 
+#' with a small number of particles, e.g., less than 100.
+#' @param seed Seed for the C++ RNG (positive integer).
 #' @param ... Ignored.
 #' @return List with samples (\code{alpha}) from the filtering distribution and 
 #' corresponding weights (\code{weights}), as well as filtered and predicted 
@@ -19,7 +24,7 @@
 bootstrap_filter <- function(model, particles, ...) {
   UseMethod("bootstrap_filter", model)
 }
-#' @method bootstrap_filter gaussian
+#' @method bootstrap_filter lineargaussian
 #' @rdname bootstrap_filter
 #' @export
 #' @examples 
@@ -32,8 +37,10 @@ bootstrap_filter <- function(model, particles, ...) {
 #' ts.plot(cbind(y, x, out$att), col = 1:3)
 #' ts.plot(cbind(kfilter(model)$att, out$att), col = 1:3)
 #' 
-bootstrap_filter.gaussian <- function(model, particles,
+bootstrap_filter.lineargaussian <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
+  
+  check_missingness(model)
   
   if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
@@ -43,12 +50,12 @@ bootstrap_filter.gaussian <- function(model, particles,
       particles <- nsim
     }
   }
-  particles <- check_integer(particles, "particles")
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  particles <- check_intmax(particles, "particles")
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   
   nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
     length(model$a1) * particles
-  if (particles > 100 & nsamples > 1e12) {
+  if (particles > 100 & nsamples > 1e10) {
     warning(paste("Trying to sample ", nsamples, 
       "particles, you might run out of memory."))
   }
@@ -78,6 +85,8 @@ bootstrap_filter.gaussian <- function(model, particles,
 bootstrap_filter.nongaussian <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
 
+  check_missingness(model)
+  
   if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
     if (!is.null(nsim)) {
@@ -86,11 +95,11 @@ bootstrap_filter.nongaussian <- function(model, particles,
       particles <- nsim
     }
   }
-  particles <- check_integer(particles, "particles")
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  particles <- check_intmax(particles, "particles")
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
     length(model$a1) * particles
-  if (particles > 100 & nsamples > 1e12) {
+  if (particles > 100 & nsamples > 1e10) {
     warning(paste("Trying to sample ", nsamples, 
       "particles, you might run out of memory."))
   }
@@ -114,7 +123,9 @@ bootstrap_filter.nongaussian <- function(model, particles,
 #' @export
 bootstrap_filter.ssm_nlg <- function(model, particles,
   seed = sample(.Machine$integer.max, size = 1), ...) {
-
+  
+  check_missingness(model)
+  
   if (missing(particles)) {
     nsim <- eval(match.call(expand.dots = TRUE)$nsim)
     if (!is.null(nsim)) {
@@ -123,15 +134,15 @@ bootstrap_filter.ssm_nlg <- function(model, particles,
       particles <- nsim
     }
   }
-  particles <- check_integer(particles, "particles")
+  particles <- check_intmax(particles, "particles")
   
   nsamples <- ifelse(!is.null(nrow(model$y)), nrow(model$y), length(model$y)) * 
     model$n_states * particles
-  if (particles > 100 & nsamples > 1e12) {
+  if (particles > 100 & nsamples > 1e10) {
     warning(paste("Trying to sample ", nsamples, 
       "particles, you might run out of memory."))
   }
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   
   out <- bsf_nlg(t(model$y), model$Z, model$H, model$T,
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1,
@@ -154,6 +165,8 @@ bootstrap_filter.ssm_nlg <- function(model, particles,
 bootstrap_filter.ssm_sde <- function(model, particles, L,
   seed = sample(.Machine$integer.max, size = 1), ...) {
   
+  check_missingness(model)
+  
   if (!test_count(L, positive=TRUE)) 
     stop("Discretization level L must be a positive integer.")
   
@@ -166,14 +179,14 @@ bootstrap_filter.ssm_sde <- function(model, particles, L,
     }
   }
   
-  particles <- check_integer(particles, "particles")
+  particles <- check_intmax(particles, "particles")
   
   nsamples <- length(model$y) * particles
-  if (particles > 100 & nsamples > 1e12) {
+  if (particles > 100 & nsamples > 1e10) {
     warning(paste("Trying to sample ", nsamples, 
       "particles, you might run out of memory."))
   }
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   
   out <- bsf_sde(model$y, model$x0, model$positive,
     model$drift, model$diffusion, model$ddiffusion,

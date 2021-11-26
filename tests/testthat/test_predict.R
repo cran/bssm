@@ -74,8 +74,59 @@ test_that("Gaussian predictions work", {
     future = FALSE, nsim = 100), NA)
   expect_equal(yrep, yrep2)
   expect_equal(meanrep, meanrep2)
+  
   expect_error(predict(mcmc_results2, model, type = "response", 
     future = FALSE, nsim = 100))
+
+  expect_error(predict(mcmc_results2, model2, type = "response", 
+    future = FALSE, nsim = 0))
+  expect_error(predict(mcmc_results2, model2, type = "response", 
+    future = 5, nsim = 100)) 
+  expect_error(predict(mcmc_results2, model = 465, type = "response", 
+      future = FALSE, nsim = 100))
+  mcmc_results3 <- run_mcmc(model2, iter = 1000, output_type = "theta")
+  expect_error(predict(mcmc_results3, model2, type = "response", 
+    future = FALSE, nsim = 100))
+  class(model) <- "aa"
+  expect_error(predict(mcmc_results3, model2, type = "response", 
+    future = FALSE, nsim = 100))
+  
+  
+  set.seed(1)
+  y <- rnorm(10, cumsum(rnorm(10, 0, 0.1)), 0.1)
+  model <- bsm_lg(y, 
+    sd_level = halfnormal(1, 1),
+    sd_slope = halfnormal(0.1, 0.1),
+    sd_y = halfnormal(0.1, 1))
+  
+  mcmc_results <- run_mcmc(model, iter = 1000)
+  future_model <- model
+  future_model$y <- rep(NA, 3)
+  
+  expect_error(predict(mcmc_results, future_model, type = "mean", 
+    nsim = 1000), paste0("The number of samples should be smaller than or ",
+    "equal to the number of posterior samples 500."))
+  expect_error(predict(mcmc_results, future_model, type = "state", 
+    nsim = 50), NA)
+  
+  set.seed(1)
+  expect_error(pred <- predict(mcmc_results, future_model, type = "mean", 
+    nsim = 500), NA)
+  
+  expect_gt(mean(pred$value[pred$time == 3]), 0)
+  expect_lt(mean(pred$value[pred$time == 3]), 0.5)
+  
+  # Posterior predictions for past observations:
+  set.seed(1)
+  expect_error(yrep <- predict(mcmc_results, model, type = "response", 
+    future = FALSE, nsim = 100), NA)
+  set.seed(1)
+  expect_error(meanrep <- predict(mcmc_results, model, type = "mean", 
+    future = FALSE, nsim = 100), NA)
+  
+  expect_equal(mean(yrep$value - meanrep$value), 0, tol = 0.1)
+
+  
 })
 
 test_that("Non-gaussian predictions work", {

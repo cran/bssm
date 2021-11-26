@@ -2,13 +2,13 @@
 % Please edit documentation in R/sim_smoother.R
 \name{sim_smoother}
 \alias{sim_smoother}
-\alias{sim_smoother.gaussian}
+\alias{sim_smoother.lineargaussian}
 \alias{sim_smoother.nongaussian}
 \title{Simulation Smoothing}
 \usage{
 sim_smoother(model, nsim, seed, use_antithetic = TRUE, ...)
 
-\method{sim_smoother}{gaussian}(
+\method{sim_smoother}{lineargaussian}(
   model,
   nsim = 1,
   seed = sample(.Machine$integer.max, size = 1),
@@ -27,15 +27,19 @@ sim_smoother(model, nsim, seed, use_antithetic = TRUE, ...)
 \arguments{
 \item{model}{Model of class \code{bsm_lg}, \code{ar1_lg}
 \code{ssm_ulg}, or \code{ssm_mlg}, or one of the non-gaussian models
-\code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+\code{bsm_ng}, \code{ar1_ng} \code{svm},
 \code{ssm_ung}, or \code{ssm_mng}.}
 
-\item{nsim}{Number of samples (positive integer).}
+\item{nsim}{Number of samples (positive integer). Suitable values
+depend on the model and the data, and while larger values provide more
+accurate estimates, the run time also increases with respect to to the
+number of samples, so it is generally a good idea to test the filter first
+with a small number of samples, e.g., less than 100.}
 
-\item{seed}{Seed for the random number generator (positive integer).}
+\item{seed}{Seed for the C++ RNG (positive integer).}
 
-\item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic 
-variable for location in simulation smoothing. Ignored for \code{ssm_mng} 
+\item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic
+variable for location in simulation smoothing. Ignored for \code{ssm_mng}
 models.}
 
 \item{...}{Ignored.}
@@ -44,12 +48,12 @@ models.}
 An array containing the generated samples.
 }
 \description{
-Function \code{sim_smoother} performs simulation smoothing i.e. simulates 
-the states from the conditional distribution \eqn{p(\alpha | y, \theta)} 
+Function \code{sim_smoother} performs simulation smoothing i.e. simulates
+the states from the conditional distribution \eqn{p(\alpha | y, \theta)}
 for linear-Gaussian models.
 }
 \details{
-For non-Gaussian/non-linear models, the simulation is based on the 
+For non-Gaussian/non-linear models, the simulation is based on the
 approximating Gaussian model.
 }
 \examples{

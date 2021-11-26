@@ -1,3 +1,6 @@
+## ----srr-tags, eval = FALSE, echo = FALSE-------------------------------------
+#  #' @srrstats {G5.0, G5.1} Codes for generating the data are included in in this Rmd file.
+
 ## ---- echo = FALSE------------------------------------------------------------
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {

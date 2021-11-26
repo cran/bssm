@@ -1,4 +1,24 @@
-
+#' Check Arguments
+#' 
+#' @importFrom checkmate test_atomic_vector test_count test_double test_flag 
+#' test_integerish test_int
+#' 
+#' @param x Variable to be checked.
+#' @param name Name of the argument used in printing error messages.
+#' @param positive Logical, check for positiveness of \code{x}.
+#' @param max Maximum value of \code{x}.
+#' @param p An integer, number of time series.
+#' @param n An integer, number of time points.
+#' @param m An integer, dimensionality of the state vector.
+#' @param k An integer, number of predictors.
+#' @param multivariate Logical, should \code{p} be larger than 1?
+#' @param beta A vector of regression coefficients.
+#' @param xreg A matrix or vector of predictors.
+#' @param distribution Distribution(s) of the responses.
+#' @param y The response time series.
+#' @param type Name to be added to the sd parameter name.
+#' @param add_prefix Logical, add \code{type} to parameter name.
+#' @noRd
 check_y <- function(x, multivariate = FALSE, distribution = "gaussian") {
   if (any(!is.na(x))) {
     if (multivariate) {
@@ -43,6 +63,7 @@ check_y <- function(x, multivariate = FALSE, distribution = "gaussian") {
   }
   x
 }
+
 check_period <- function(x, n) {
   if (!test_int(x)) {
     stop("Argument 'period' should be a single integer. ")
@@ -54,9 +75,10 @@ check_period <- function(x, n) {
       stop("Period should be less than the number of time points.")
     }
   }
-  x
+  as.integer(x)
 }
-
+#' @srrstats {BS2.5} Checks that observations are compatible with their 
+#' distributions are made.
 check_distribution <- function(x, distribution) {
   for (i in seq_len(ncol(x))) {
     if (distribution[i] != "gaussian" && any(na.omit(x[, i]) < 0)) {
@@ -72,6 +94,9 @@ check_distribution <- function(x, distribution) {
     }
   }
 }
+
+
+
 check_sd <- function(x, type, add_prefix = TRUE) {
   
   if (add_prefix) {
@@ -80,7 +105,8 @@ check_sd <- function(x, type, add_prefix = TRUE) {
     param <- type
   }
   if (length(x) != 1) {
-    stop(paste0("Argument ", param, " must be of length one (scalar or bssm_prior)."))
+    stop(paste0("Argument ", param, 
+      " must be of length one (scalar or bssm_prior)."))
   }
   if (!is.numeric(x)) {
     stop(paste0("Argument ", param, " must be numeric."))
@@ -105,6 +131,7 @@ check_xreg <- function(x, n) {
   
 }
 
+
 check_beta <- function(x, k) {
   if(!is.numeric(x)) stop("'beta' must be numeric. ")
   if (length(x) != k) {
@@ -127,6 +154,7 @@ check_mu <- function(x) {
   }
   
 }
+
 check_rho <- function(x) {
   
   if (length(x) != 1) {
@@ -137,11 +165,14 @@ check_rho <- function(x) {
   }
   
 }
-check_phi <- function(x, distribution) {
+
+
+check_phi <- function(x) {
   if (x < 0) {
     stop("Parameter 'phi' must be non-negative.")
   }
 }
+
 check_u <- function(x, y, multivariate = FALSE) {
   if (any(x < 0)) {
     stop("All values of 'u' must be non-negative.")
@@ -215,6 +246,10 @@ check_C <- function(x, m, n) {
   x
 }
 
+  
+  
+  
+
 create_regression <- function(beta, xreg, n) {
   if (missing(xreg) || is.null(xreg)) {
     list(xreg = matrix(0, 0, 0), coefs = numeric(0), beta = NULL)
@@ -226,8 +261,12 @@ create_regression <- function(beta, xreg, n) {
         stop(paste("Prior for beta must be of class 'bssm_prior' or", 
           "'bssm_prior_list.", sep = " " ))
       } else {
-        if (is.null(dim(xreg)) && length(xreg) == n) {
-          dim(xreg) <- c(n, 1)
+        if (is.null(dim(xreg))) {
+          if (length(xreg) == n) {
+            dim(xreg) <- c(n, 1)
+          } else {
+            stop("Length of xreg is not equal to the length of the series y.")
+          }
         }
         check_xreg(xreg, n)
         nx <- ncol(xreg)
@@ -326,6 +365,7 @@ check_a1 <- function(x, m) {
   x
 }
 
+
 check_P1 <- function(x, m) {
   if (missing(x) || is.null(x)) {
     x <- matrix(0, m, m)
@@ -341,6 +381,7 @@ check_P1 <- function(x, m) {
   }
   x
 }
+
 
 check_H <- function(x, p, n, multivariate = FALSE) {
   
@@ -363,14 +404,15 @@ check_H <- function(x, p, n, multivariate = FALSE) {
 }
 
 
-check_integer <- function(x, name = "particles", positive = TRUE, max = 1e7) {
-  if (!test_count(x, positive)) {
+check_intmax <- function(x, name = "particles", positive = TRUE, max = 1e5) {
+  # autotest complains without additional positivity test
+  if (!test_count(x, positive) | (positive & x <= 0)) {
     stop(paste0("Argument '", name, "' should be a ",
       ifelse(positive, "positive", "non-negative"), " integer. "))
   }
   if (x > max) {
-    stop(paste0("I don't believe you want '", name, "' > ", max,
-      ". If you really do, file an issue at Github."))
+    stop(paste0("You probably do not want '", name, "' > ", max,
+      ". If you really do, please file an issue at Github. "))
   }
   as.integer(x)
 }
@@ -380,4 +422,34 @@ check_positive_real <- function(x, name) {
     stop(paste0("Argument '", name, "' should be positive real value."))
   }
   x
+}
+
+check_theta <- function(x) {
+  
+  if (!is.numeric(x) || !test_atomic_vector(x)) {
+    stop("Argument 'theta' should be a numeric vector.")
+  }
+  if (is.null(names(x))) {
+    names(x) <- paste("theta_", seq_len(length(x)))
+  }
+  x
+}
+
+check_missingness <- function(x) {
+  if (!inherits(x, c("ssm_nlg", "ssm_sde"))) {
+    if (is.null(x$prior_parameters)) {
+      contains_na <- 
+        anyNA(x[-which(names(x) %in% c("y", "update_fn", "prior_fn"))], 
+          recursive = TRUE)
+      if (contains_na) stop(paste(
+        "Missing values not allowed in the model object", 
+        "(except in component 'y')."))
+    } else {
+      contains_na <- anyNA(x[-which(names(x) %in% c("y", "prior_parameters"))], 
+        recursive = TRUE)
+      if (contains_na) stop(paste(
+        "Missing values not allowed in the model object", 
+        "(except in components 'y' and 'prior_parameters')."))
+    }
+  }
 }

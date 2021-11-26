@@ -1,4 +1,10 @@
-# Get MAP estimate of theta
+#' Get MAP estimate of theta
+#' @param x Object of class \code{mcmc_output} or any other list style object 
+#' which has matrix theta (where each row corresponds to one iteration) and 
+#' vector \code{posterior},
+#' @return A vector containing theta corresponding to maximum log-posterior 
+#' value of the posterior sample.
+#' @noRd
 get_map <- function(x) {
   x$theta[which.max(x$posterior), ]
 }
@@ -21,11 +27,11 @@ get_map <- function(x) {
 #' estimate from the (approximate) MCMC run. Can also be an output from 
 #' \code{run_mcmc} which is then used to compute the MAP 
 #' estimate of theta.
-#' @param candidates Vector of positive integers containing the candidate 
+#' @param candidates A vector of positive integers containing the candidate 
 #' number of particles to test. Default is \code{seq(10, 100, by = 10)}. 
 #' @param replications Positive integer, how many replications should be used 
 #' for computing the standard deviations? Default is 100.
-#' @param seed Seed for the random number generator  (positive integer).
+#' @param seed Seed for the C++ RNG  (positive integer).
 #' @return List with suggested number of particles \code{N} and matrix 
 #' containing estimated standard deviations of the log-weights and 
 #' corresponding number of particles.
@@ -80,15 +86,17 @@ suggest_N <- function(model, theta,
   candidates = seq(10, 100, by = 10), replications = 100, 
   seed = sample(.Machine$integer.max, size = 1)) {
   
-  replications <- check_integer(replications, "replications")
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  check_missingness(model)
+  
+  replications <- check_intmax(replications, "replications", max = 1000)
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   
   if (!test_integerish(candidates, lower = 1, any.missing = FALSE, 
     min.len = 1)) {
     stop("Argument 'candidates' should be vector of positive integers. ")
   } 
-  if (max(candidates) > 1e7) 
-    stop(paste("I don't believe you want to use over 1e7 particles",
+  if (max(candidates) > 1e5) 
+    stop(paste("I don't believe you want to use over 1e5 particles",
       "If you really do, please file an issue at Github.", sep = " "))
   
   if (missing(theta) | (!is.vector(theta) & !inherits(theta, "mcmc_output"))) {
@@ -139,6 +147,8 @@ suggest_N <- function(model, theta,
 #' actually checked, i.e., it is also possible to input previous 
 #' (asymptotically) exact output.
 #' @param particles Number of particles for \eqn{\psi}-APF (positive integer). 
+#' Suitable values depend on the model and the data, but often relatively 
+#' small value less than say 50 is enough. See also \code{suggest_N}
 #' @param threads Number of parallel threads (positive integer, default is 1).
 #' @param is_type Type of IS-correction. Possible choices are 
 #'\code{"is3"} for simple importance sampling (weight is computed for each 
@@ -147,18 +157,19 @@ suggest_N <- function(model, theta,
 #' \code{"is1"} for importance sampling type weighting where the number of 
 #' particles used forweight computations is proportional to the length of the 
 #' jump chain block.
-#' @param seed Seed for the random number generator  (positive integer).
-#' @return List with suggested number of particles \code{N} and matrix 
-#' containing estimated standard deviations of the log-weights and 
-#' corresponding number of particles.
+#' @param seed Seed for the C++ RNG (positive integer).
+#' @return The original object of class \code{mcmc_output} with updated 
+#' weights, log-posterior values and state samples or summaries (depending on 
+#' the \code{mcmc_output$mcmc_type}).
+#' 
 #' @references 
-#' A. Doucet, M. K. Pitt, G. Deligiannidis, R. Kohn (2018). 
+#' Doucet A, Pitt M K, Deligiannidis G, Kohn R (2018). 
 #' Efficient implementation of Markov chain Monte Carlo when using an unbiased 
 #' likelihood estimator. Biometrika, 102, 2, 295-313, 
 #' https://doi.org/10.1093/biomet/asu075
 #' 
-#' Vihola, M, Helske, J, Franks, J (2020). Importance sampling type estimators based 
-#' on approximate marginal Markov chain Monte Carlo. 
+#' Vihola M, Helske J, Franks J (2020). Importance sampling type estimators 
+#' based on approximate marginal Markov chain Monte Carlo. 
 #' Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 #' @export
 #' @examples 
@@ -234,14 +245,17 @@ suggest_N <- function(model, theta,
 post_correct <- function(model, mcmc_output, particles, threads = 1L, 
   is_type = "is2", seed = sample(.Machine$integer.max, size = 1)) {
   
-  particles <- check_integer(particles, "particles")
-  threads <- check_integer(threads, "threads")
+  check_missingness(model)
   
-  seed <- check_integer(seed, "seed", FALSE, max = .Machine$integer.max)
+  particles <- check_intmax(particles, "particles")
+  threads <- check_intmax(threads, "threads")
+  
+  seed <- check_intmax(seed, "seed", FALSE, max = .Machine$integer.max)
   
   if (!inherits(mcmc_output, "mcmc_output")) 
     stop("Object 'mcmc_output' is not valid output from 'run_mcmc'.")
-  is_type <- pmatch(match.arg(is_type, paste0("is", 1:3)), paste0("is", 1:3))
+  is_type <- pmatch(match.arg(tolower(is_type), paste0("is", 1:3)), 
+    paste0("is", 1:3))
   
   a <- proc.time()
   if (inherits(model, "nongaussian")) {

@@ -16,7 +16,7 @@
 fast_smoother <- function(model, ...) {
   UseMethod("fast_smoother", model)
 }
-#' @method fast_smoother gaussian
+#' @method fast_smoother lineargaussian
 #' @rdname smoother
 #' @export
 #' @examples
@@ -25,7 +25,9 @@ fast_smoother <- function(model, ...) {
 #'   sd_y = tnormal(50, 50, 25, min = 0),
 #'   a1 = 1000, P1 = 200)
 #' ts.plot(cbind(Nile, fast_smoother(model)), col = 1:2)
-fast_smoother.gaussian <- function(model, ...) {
+fast_smoother.lineargaussian <- function(model, ...) {
+  
+  check_missingness(model)
   
   out <- gaussian_fast_smoother(model, model_type(model))
   colnames(out) <- names(model$a1)
@@ -43,7 +45,7 @@ fast_smoother.nongaussian <- function(model, ...) {
 smoother <- function(model, ...) {
   UseMethod("smoother", model)
 }
-#' @method smoother gaussian
+#' @method smoother lineargaussian
 #' @rdname smoother
 #' @export
 #' @examples
@@ -55,7 +57,9 @@ smoother <- function(model, ...) {
 #' out <- smoother(model)
 #' ts.plot(cbind(Nile, out$alphahat), col = 1:2)
 #' ts.plot(sqrt(out$Vt[1, 1, ]))
-smoother.gaussian <- function(model, ...) {
+smoother.lineargaussian <- function(model, ...) {
+  
+  check_missingness(model)
   
   out <-  gaussian_smoother(model, model_type(model))
   colnames(out$alphahat) <- colnames(out$Vt) <- rownames(out$Vt) <- 
@@ -118,7 +122,9 @@ smoother.nongaussian <- function(model, ...) {
 #' }
 ekf_smoother <- function(model, iekf_iter = 0) {
   
-  iekf_iter <- check_integer(iekf_iter, "iekf_iter", positive = FALSE)
+  check_missingness(model)
+  
+  iekf_iter <- check_intmax(iekf_iter, "iekf_iter", positive = FALSE)
   
   out <- ekf_smoother_nlg(t(model$y), model$Z, model$H, model$T, 
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 
@@ -137,8 +143,9 @@ ekf_smoother <- function(model, iekf_iter = 0) {
 #' @export
 ekf_fast_smoother <- function(model, iekf_iter = 0) {
   
+  check_missingness(model)
   
-  iekf_iter <- check_integer(iekf_iter, "iekf_iter", positive = FALSE)
+  iekf_iter <- check_intmax(iekf_iter, "iekf_iter", positive = FALSE)
   
   out <- ekf_fast_smoother_nlg(t(model$y), model$Z, model$H, model$T, 
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 

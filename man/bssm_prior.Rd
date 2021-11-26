@@ -36,14 +36,14 @@ gamma_prior(init, shape, rate)
 gamma(init, shape, rate)
 }
 \arguments{
-\item{init}{Initial value for the parameter, used in initializing the model 
+\item{init}{Initial value for the parameter, used in initializing the model
 components and as a starting values in MCMC.}
 
 \item{min}{Lower bound of the uniform and truncated normal prior.}
 
 \item{max}{Upper bound of the uniform and truncated normal prior.}
 
-\item{sd}{Positive value defining the standard deviation of the 
+\item{sd}{Positive value defining the standard deviation of the
 (underlying i.e. non-truncated) Normal distribution.}
 
 \item{mean}{Mean of the Normal prior.}
@@ -53,23 +53,23 @@ components and as a starting values in MCMC.}
 \item{rate}{Positive rate parameter of the Gamma prior.}
 }
 \value{
-object of class \code{bssm_prior} or \code{bssm_prior_list} in case 
+object of class \code{bssm_prior} or \code{bssm_prior_list} in case
 of multiple priors (i.e. multiple regression coefficients).
 }
 \description{
-These simple objects of class \code{bssm_prior} are used to construct a 
-prior distributions for the some of the model objects of \code{bssm} 
-package. Currently supported priors are uniform 
-(\code{uniform()}), half-normal (\code{halfnormal()}), 
-normal (\code{normal()}), gamma (\code{gamma}), and 
-truncated normal distribution  (\code{tnormal()}). All parameters are 
-vectorized so for regression coefficient vector beta you can define prior 
+These simple objects of class \code{bssm_prior} are used to construct a
+prior distributions for the some of the model objects of \code{bssm}
+package. Currently supported priors are uniform
+(\code{uniform()}), half-normal (\code{halfnormal()}),
+normal (\code{normal()}), gamma (\code{gamma}), and
+truncated normal distribution  (\code{tnormal()}). All parameters are
+vectorized so for regression coefficient vector beta you can define prior
 for example as \code{normal(0, 0, c(10, 20))}.
 }
 \details{
-The longer name versions of the prior functions with \code{_prior} ending 
-are identical with shorter versions and they are available only to 
-avoid clash with R's primitive function \code{gamma} (other long prior names 
+The longer name versions of the prior functions with \code{_prior} ending
+are identical with shorter versions and they are available only to
+avoid clash with R's primitive function \code{gamma} (other long prior names
 are just for consistent naming).
 }
 \examples{
@@ -77,8 +77,8 @@ are just for consistent naming).
 uniform(init = 0.2, min = -1.0, max = 1.0)
 # two normal priors at once i.e. for coefficients beta:
 normal(init = c(0.1, 2.5), mean = 0.1, sd = c(1.5, 2.8))
-# Gamma prior
-gamma(init = 0.1, shape = 2.5, rate = 1.1)
+# Gamma prior (not run because autotest tests complain)
+# gamma(init = 0.1, shape = 2.5, rate = 1.1)
 # Same as
 gamma_prior(init = 0.1, shape = 2.5, rate = 1.1)
 # Half-normal
@@ -86,19 +86,21 @@ halfnormal(init = 0.01, sd = 0.1)
 # Truncated normal
 tnormal(init = 5.2, mean = 5.0, sd = 3.0, min = 0.5, max = 9.5)
 
-\dontshow{
+
 # Further examples for diagnostic purposes:
 uniform(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
 normal(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-tnormal(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), c(3.3, 3.3))
+tnormal(c(2, 2.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), 3.3)
 halfnormal(c(0, 0.2), c(1.0, 1.2))
-gamma(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
+# not run because autotest bug 
+# gamma(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
 
 # longer versions:
-uniform_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-normal_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-tnormal_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), c(3.3, 3.3))
-halfnormal_prior(c(0, 0.2), c(1.0, 1.2))
-gamma_prior(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
-}
+uniform_prior(init = c(0, 0.2), min = c(-1.0, 0.001), max = c(1.0, 1.2))
+normal_prior(init = c(0, 0.2), mean = c(-1.0, 0.001), sd = c(1.0, 1.2))
+tnormal_prior(init = c(2, 2.2), mean = c(-1.0, 0.001), sd = c(1.0, 1.2), 
+  min = c(1.2, 2), max = 3.3)
+halfnormal_prior(init = c(0, 0.2), sd = c(1.0, 1.2))
+gamma_prior(init = c(0.1, 0.2), shape = c(1.2, 2), rate = c(3.3, 3.3))
+
 }

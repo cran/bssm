@@ -71,7 +71,7 @@ summary(mcmc_ekf, return_se = TRUE)
 
 ## ----summaries----------------------------------------------------------------
 library("dplyr")
-library("Hmisc")
+library("diagis")
 d1 <- as.data.frame(mcmc_is, variable = "states")
 d2 <- as.data.frame(mcmc_ekf, variable = "states")
 d1$method <- "is2-psi"
@@ -81,17 +81,17 @@ r_summary <- rbind(d1, d2) %>%
   filter(variable == "logit_r") %>%
   group_by(time, method) %>%
   summarise(
-    mean = wtd.mean(plogis(value), weight, normwt = TRUE), 
-    lwr = wtd.quantile(plogis(value), weight, 0.025, normwt = TRUE), 
-    upr = wtd.quantile(plogis(value), weight, 0.975, normwt = TRUE))
+    mean = weighted_mean(plogis(value), weight), 
+    lwr = weighted_quantile(plogis(value), weight, 0.025), 
+    upr = weighted_quantile(plogis(value), weight, 0.975))
 
 p_summary <- rbind(d1, d2) %>% 
   filter(variable == "p") %>%
   group_by(time, method) %>%
   summarise(  
-    mean = wtd.mean(value, weight, normwt = TRUE), 
-    lwr = wtd.quantile(value, weight, 0.025, normwt = TRUE), 
-    upr = wtd.quantile(value, weight, 0.975, normwt = TRUE))
+    mean = weighted_mean(value, weight), 
+    lwr = weighted_quantile(value, weight, 0.025), 
+    upr = weighted_quantile(value, weight, 0.975))
 
 ## ----figures------------------------------------------------------------------
 library("ggplot2")

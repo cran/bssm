@@ -16,43 +16,46 @@
 )
 }
 \arguments{
-\item{object}{Results object of class \code{mcmc_output} from 
-\code{\link{run_mcmc}}}
+\item{object}{Results object of class \code{mcmc_output} from
+\code{\link{run_mcmc}}.}
 
-\item{model}{A \code{bssm_model} object.. 
-Should have same structure and class as the original model which was used in 
-\code{run_mcmc}, in order to plug the posterior samples of the model 
-parameters to the right places. 
-It is also possible to input the original model for obtaining predictions 
-for past time points. In this case, set argument 
+\item{model}{A \code{bssm_model} object.
+Should have same structure and class as the original model which was used in
+\code{run_mcmc}, in order to plug the posterior samples of the model
+parameters to the right places.
+It is also possible to input the original model for obtaining predictions
+for past time points. In this case, set argument
 \code{future} to \code{FALSE}.}
 
-\item{nsim}{Positive integer defining number of samples to draw.}
+\item{nsim}{Positive integer defining number of samples to draw. Should be
+less than or equal to \code{sum(object$counts)} i.e. the number of samples
+in the MCMC output. Default is to use all the samples.}
 
-\item{type}{Type of predictions. Possible choices are 
+\item{type}{Type of predictions. Possible choices are
 \code{"mean"} \code{"response"}, or  \code{"state"} level.}
 
-\item{future}{Default is \code{TRUE}, in which case predictions are for the 
-future, using posterior samples of (theta, alpha_T+1) i.e. the 
-posterior samples of hyperparameters and latest states. 
+\item{future}{Default is \code{TRUE}, in which case predictions are for the
+future, using posterior samples of (theta, alpha_T+1) i.e. the
+posterior samples of hyperparameters and latest states.
 Otherwise it is assumed that \code{model} corresponds to the original model.}
 
-\item{seed}{Seed for RNG (positive integer). Note that this affects only the 
-C++ side, and \code{predict} also uses R side RNG for subsampling, so for 
-replicable results you should call \code{set.seed} before \code{predict}.}
+\item{seed}{Seed for the C++ RNG (positive integer). Note that this affects
+only the C++ side, and \code{predict} also uses R side RNG for subsampling,
+so for replicable results you should call \code{set.seed} before
+\code{predict}.}
 
 \item{...}{Ignored.}
 }
 \value{
-A \code{data.frame} consisting of samples from the predictive 
+A data.frame consisting of samples from the predictive
 posterior distribution.
 }
 \description{
-Draw samples from the posterior predictive distribution for future 
-time points given the posterior draws of hyperparameters \eqn{\theta} and 
-latent state \eqn{alpha_{n+1}}. Function can also be used to draw samples 
-from the posterior predictive distribution
- \eqn{p(\tilde y_1, \ldots, \tilde y_n | y_1,\ldots, y_n)}.
+Draw samples from the posterior predictive distribution for future
+time points given the posterior draws of hyperparameters \eqn{\theta} and
+latent state \eqn{alpha_{n+1}} returned by \code{run_mcmc}.
+Function can also be used to draw samples from the posterior predictive
+distribution \eqn{p(\tilde y_1, \ldots, \tilde y_n | y_1,\ldots, y_n)}.
 }
 \examples{
 library("graphics")
@@ -67,7 +70,7 @@ future_model$y <- ts(rep(NA, 25),
   start = tsp(model$y)[2] + 2 * deltat(model$y), 
   frequency = frequency(model$y))
 # use "state" for illustrative purposes, we could use type = "mean" directly
-pred <- predict(mcmc_results, future_model, type = "state", 
+pred <- predict(mcmc_results, model = future_model, type = "state", 
   nsim = 1000)
 
 library("dplyr")
@@ -110,9 +113,9 @@ rbind(sumr_fit, sumr_pred) \%>\%
     time = time(JohnsonJohnson)))
 
 # Posterior predictions for past observations:
-yrep <- predict(mcmc_results, model, type = "response", 
+yrep <- predict(mcmc_results, model = model, type = "response", 
   future = FALSE, nsim = 1000)
-meanrep <- predict(mcmc_results, model, type = "mean", 
+meanrep <- predict(mcmc_results, model = model, type = "mean", 
   future = FALSE, nsim = 1000)
   
 sumr_yrep <- yrep \%>\% 
@@ -130,7 +133,8 @@ sumr_meanrep <- meanrep \%>\%
   mutate(interval = "Mean")
     
 rbind(sumr_meanrep, sumr_yrep) \%>\% 
-  mutate(interval = factor(interval, levels = c("Observations", "Mean"))) \%>\%
+  mutate(interval = 
+    factor(interval, levels = c("Observations", "Mean"))) \%>\%
   ggplot(aes(x = time, y = earnings)) + 
   geom_ribbon(aes(ymin = lwr, ymax = upr, fill = interval), 
    alpha = 0.75) +
@@ -140,4 +144,7 @@ rbind(sumr_meanrep, sumr_yrep) \%>\%
     time = time(model$y)))    
 
 
+}
+\seealso{
+\code{fitted} for in-sample predictions.
 }

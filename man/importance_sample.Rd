@@ -18,29 +18,33 @@ importance_sample(model, nsim, use_antithetic, max_iter, conv_tol, seed, ...)
 )
 }
 \arguments{
-\item{model}{Model of class \code{bsm_ng}, \code{ar1_ng} \code{svm}, 
+\item{model}{Model of class \code{bsm_ng}, \code{ar1_ng} \code{svm},
 \code{ssm_ung}, or \code{ssm_mng}.}
 
-\item{nsim}{Number of samples (positive integer).}
+\item{nsim}{Number of samples (positive integer). Suitable values
+depend on the model and the data, and while larger values provide more
+accurate estimates, the run time also increases with respect to to the
+number of samples, so it is generally a good idea to test the filter first
+with a small number of samples, e.g., less than 100.}
 
-\item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic 
-variable for location in simulation smoothing. Ignored for \code{ssm_mng} 
+\item{use_antithetic}{Logical. If \code{TRUE} (default), use antithetic
+variable for location in simulation smoothing. Ignored for \code{ssm_mng}
 models.}
 
-\item{max_iter}{Maximum number of iterations as a positive integer. 
+\item{max_iter}{Maximum number of iterations as a positive integer.
 Default is 100 (although typically only few iterations are needed).}
 
-\item{conv_tol}{Positive tolerance parameter. Default is 1e-8. Approximation 
-is claimed to be converged when the mean squared difference of the modes of 
+\item{conv_tol}{Positive tolerance parameter. Default is 1e-8. Approximation
+is claimed to be converged when the mean squared difference of the modes of
 is less than \code{conv_tol}.}
 
-\item{seed}{Seed for the random number generator (positive integer).}
+\item{seed}{Seed for the C++ RNG (positive integer).}
 
 \item{...}{Ignored.}
 }
 \description{
-Returns \code{nsim} samples from the approximating Gaussian model with 
-corresponding (scaled) importance weights. 
+Returns \code{nsim} samples from the approximating Gaussian model with
+corresponding (scaled) importance weights.
 Probably mostly useful for comparing KFAS and bssm packages.
 }
 \examples{
@@ -53,8 +57,8 @@ imp <- importance_sample(model, nsim = 1000)
 
 est <- matrix(NA, 3, nrow(sexratio))
 for(i in 1:ncol(est)) {
-  est[, i] <- Hmisc::wtd.quantile(exp(imp$alpha[i, 1, ]), imp$weights, 
-    prob = c(0.05,0.5,0.95), normwt=TRUE)
+  est[, i] <- diagis::weighted_quantile(exp(imp$alpha[i, 1, ]), imp$weights, 
+    prob = c(0.05,0.5,0.95))
 }
 
 ts.plot(t(est),lty = c(2,1,2))

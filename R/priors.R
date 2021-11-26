@@ -28,13 +28,17 @@
 #' @return object of class \code{bssm_prior} or \code{bssm_prior_list} in case 
 #' of multiple priors (i.e. multiple regression coefficients).
 #' @export
+#' @srrstats {BS1.2c, BS2.2, BS2.3, BS2.4, BS2.6, BS2.7} Explains prior 
+#' definitions and initial values.
+#' @srrstats {BS2.5} Checks are in place for the distributional parameters of 
+#' priors and their initial values.
 #' @examples
 #' # create uniform prior on [-1, 1] for one parameter with initial value 0.2:
 #' uniform(init = 0.2, min = -1.0, max = 1.0)
 #' # two normal priors at once i.e. for coefficients beta:
 #' normal(init = c(0.1, 2.5), mean = 0.1, sd = c(1.5, 2.8))
-#' # Gamma prior
-#' gamma(init = 0.1, shape = 2.5, rate = 1.1)
+#' # Gamma prior (not run because autotest tests complain)
+#' # gamma(init = 0.1, shape = 2.5, rate = 1.1)
 #' # Same as
 #' gamma_prior(init = 0.1, shape = 2.5, rate = 1.1)
 #' # Half-normal
@@ -42,21 +46,23 @@
 #' # Truncated normal
 #' tnormal(init = 5.2, mean = 5.0, sd = 3.0, min = 0.5, max = 9.5)
 #' 
-#' \dontshow{
+#' 
 #' # Further examples for diagnostic purposes:
 #' uniform(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
 #' normal(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-#' tnormal(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), c(3.3, 3.3))
+#' tnormal(c(2, 2.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), 3.3)
 #' halfnormal(c(0, 0.2), c(1.0, 1.2))
-#' gamma(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
+#' # not run because autotest bug 
+#' # gamma(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
 #' 
 #' # longer versions:
-#' uniform_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-#' normal_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2))
-#' tnormal_prior(c(0, 0.2), c(-1.0, 0.001), c(1.0, 1.2), c(1.2, 2), c(3.3, 3.3))
-#' halfnormal_prior(c(0, 0.2), c(1.0, 1.2))
-#' gamma_prior(c(0.1, 0.2), c(1.2, 2), c(3.3, 3.3))
-#' }
+#' uniform_prior(init = c(0, 0.2), min = c(-1.0, 0.001), max = c(1.0, 1.2))
+#' normal_prior(init = c(0, 0.2), mean = c(-1.0, 0.001), sd = c(1.0, 1.2))
+#' tnormal_prior(init = c(2, 2.2), mean = c(-1.0, 0.001), sd = c(1.0, 1.2), 
+#'   min = c(1.2, 2), max = 3.3)
+#' halfnormal_prior(init = c(0, 0.2), sd = c(1.0, 1.2))
+#' gamma_prior(init = c(0.1, 0.2), shape = c(1.2, 2), rate = c(3.3, 3.3))
+#' 
 uniform_prior <- function(init, min, max) {
   if (any(!is.numeric(init), !is.numeric(min), !is.numeric(max))) {
     stop("Parameters for priors must be numeric.")
@@ -154,9 +160,14 @@ tnormal_prior <- function(init, mean, sd, min = -Inf, max = Inf) {
   if (any(!is.numeric(init), !is.numeric(mean), !is.numeric(sd))) {
     stop("Parameters for priors must be numeric.")
   }
+  if (any(init < min) | any(init > max)) {
+    stop(paste("Initial value for parameter with truncated Normal is not", 
+      "between the lower and upper bounds.", sep = " "))
+  }
+  
   if (any(sd < 0)) {
-    stop(paste("Standard deviation parameter for Normal distribution must be",
-    "positive.", sep = " "))
+    stop(paste("Standard deviation parameter for truncated Normal distribution",
+    "must be positive.", sep = " "))
   }
   
   n <- max(length(init), length(mean), length(sd))
@@ -184,10 +195,10 @@ gamma_prior <- function(init, shape, rate) {
   if (any(!is.numeric(init), !is.numeric(shape), !is.numeric(rate))) {
     stop("Parameters for priors must be numeric.")
   }
-  if (any(shape < 0)) {
+  if (!all(shape > 0)) {
     stop("Shape parameter for Gamma distribution must be positive.")
   }
-  if (any(rate < 0)) {
+  if (!all(rate > 0)) {
     stop("Rate parameter for Gamma distribution must be positive.")
   }
   n <- max(length(init), length(shape), length(rate))

@@ -7,20 +7,21 @@
 #' For non-Gaussian models, the filtering is based on the approximate 
 #' Gaussian model.
 #'
-#' @param model Model of class \code{gaussian}, \code{nongaussian} or 
+#' @param model Model of class \code{lineargaussian}, \code{nongaussian} or 
 #' \code{ssm_nlg}.
 #' @param ... Ignored.
 #' @return List containing the log-likelihood 
 #' (approximate in non-Gaussian case), one-step-ahead predictions \code{at} 
 #' and filtered estimates \code{att} of states, and the corresponding 
-#' variances \code{Pt} and \code{Ptt}.
+#' variances \code{Pt} and \code{Ptt} up to the time point n+1 where n is the 
+#' length of the input time series.
 #' @seealso \code{\link{bootstrap_filter}}
 #' @export
 #' @rdname kfilter
 kfilter <- function(model, ...) {
   UseMethod("kfilter", model)
 }
-#' @method kfilter gaussian
+#' @method kfilter lineargaussian
 #' @rdname kfilter
 #' @export
 #' @examples
@@ -28,7 +29,9 @@ kfilter <- function(model, ...) {
 #' y <- x + rnorm(20, sd = 0.1)
 #' model <- bsm_lg(y, sd_level = 1, sd_y = 0.1)
 #' ts.plot(cbind(y, x, kfilter(model)$att), col = 1:3)
-kfilter.gaussian <- function(model, ...) {
+kfilter.lineargaussian <- function(model, ...) {
+  
+  check_missingness(model)
   
   out <- gaussian_kfilter(model, model_type = model_type(model))
   colnames(out$at) <- colnames(out$att) <- colnames(out$Pt) <-
@@ -94,7 +97,9 @@ kfilter.nongaussian <- function(model, ...) {
 #' }
 ekf <- function(model, iekf_iter = 0) {
   
-  iekf_iter <- check_integer(iekf_iter, "iekf_iter", positive = FALSE)
+  check_missingness(model)
+  
+  iekf_iter <- check_intmax(iekf_iter, "iekf_iter", positive = FALSE)
   
   out <- ekf_nlg(t(model$y), model$Z, model$H, model$T, 
     model$R, model$Z_gn, model$T_gn, model$a1, model$P1, 
@@ -160,6 +165,8 @@ ekf <- function(model, iekf_iter = 0) {
 #' ts.plot(cbind(x, out_iekf$att, out_ukf$att), col = 1:3)
 #' }
 ukf <- function(model, alpha = 0.001, beta = 2, kappa = 0) {
+  
+  check_missingness(model)
   
   if (alpha <= 0) stop("Parameter 'alpha' should be positive. ")
   if (beta < 0) stop("Parameter 'beta' should be non-negative. ")
