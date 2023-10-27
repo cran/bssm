@@ -1,7 +1,8 @@
 ## ----srr-tags, eval = FALSE, echo = FALSE-------------------------------------
 #  #' @srrstats {G5.0, G5.1} Codes for generating the data are included in in this Rmd file.
 
-## ---- echo = FALSE------------------------------------------------------------
+## ----echo = FALSE-------------------------------------------------------------
+Sys.setenv("OMP_NUM_THREADS" = 2) # For CRAN
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {
   warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
@@ -12,10 +13,10 @@ if (!requireNamespace("rmarkdown") ||
 knitr::opts_chunk$set(echo = TRUE)
 options(dplyr.summarise.inform = FALSE)
 
-## ---- echo = FALSE, message=FALSE, warning=FALSE------------------------------
+## ----echo = FALSE, message=FALSE, warning=FALSE-------------------------------
 library("dplyr")
 
-## ---- echo = FALSE, cache = FALSE, eval = FALSE-------------------------------
+## ----echo = FALSE, cache = FALSE, eval = FALSE--------------------------------
 #  library("bssm")
 #  library("foreach")
 #  library("doParallel")
@@ -37,7 +38,8 @@ library("dplyr")
 #    p <- numeric(n)
 #    p[1] <- p1
 #    for(i in 2:n)
-#      p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
+#      p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) /
+#          (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 #    # observations
 #    y <- p + rnorm(n, 0, 1)
 #  
@@ -49,7 +51,8 @@ library("dplyr")
 #    cl<-makeCluster(n_cores)
 #    registerDoParallel(cl)
 #  
-#    results <- foreach (j = 1:n_cores, .combine = "rbind", .packages = "bssm") %dopar% {
+#    results <- foreach (j = 1:n_cores, .combine = "rbind",
+#      .packages = "bssm") %dopar% {
 #  
 #      Rcpp::sourceCpp("growth_model_functions.cpp")
 #      pntrs <- create_xptrs()
@@ -62,17 +65,20 @@ library("dplyr")
 #  
 #      bsf <- ekpf <- psi <- matrix(NA, 10, nsim / n_cores)
 #  
-#      for(i in 1:ncol(bsf)) {
+#      for(i in seq_len(ncol(bsf))) {
 #  
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "bsf"))[3]
 #        bsf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #  
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "psi"))[3]
 #        psi[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #  
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "ekf"))[3]
 #        ekpf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
 #          out$alphahat[n, ], diag(out$Vt[, , n]), time)
 #      }
@@ -113,7 +119,8 @@ library("dplyr")
 #  p <- numeric(n)
 #  p[1] <- p1
 #  for(i in 2:n)
-#    p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
+#    p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) /
+#        (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 #  # observations
 #  y <- p + rnorm(n, 0, 1)
 #  
@@ -139,7 +146,7 @@ library("dplyr")
 #    "alpha_2n", "V_1n", "V_2n")
 #  saveRDS(truth, file = "gm_truth.rds")
 
-## ---- echo = FALSE, eval = FALSE----------------------------------------------
+## ----echo = FALSE, eval = FALSE-----------------------------------------------
 #  gm10 <- readRDS("psi_pf_experiments/gm_result_10.rds")
 #  gm100 <- readRDS("psi_pf_experiments/gm_result_100.rds")
 #  gm1000 <- readRDS("psi_pf_experiments/gm_result_1000.rds")
@@ -153,11 +160,11 @@ library("dplyr")
 #      mean((x - truth)^2) * mean(time)
 #  }
 #  truth <- reference["logLik"]
-#  sumr <- results %>% group_by(method, N) %>%
+#  sumr <- results|> group_by(method, N)|>
 #    summarise(mean = mean(logLik), SD = sd(logLik),
 #      IRE = IRE(logLik, time), time = mean(time))
-#  table1 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
-#               caption = "Results for the log-likelihood estimates of the growth model. ")
+#  table1 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
+#    caption = "Results for the log-likelihood estimates of the growth model. ")
 #  saveRDS(table1, file = "psi_pf_experiments/table1.rds")
 
 ## ----tabl21, echo = FALSE-----------------------------------------------------
@@ -165,18 +172,18 @@ readRDS("psi_pf_experiments/table1.rds")
 
 ## ----alpha, echo = FALSE, eval = FALSE----------------------------------------
 #  truth <- reference["alpha_11"]
-#  sumr <- results %>% group_by(method, N) %>%
+#  sumr <- results|> group_by(method, N)|>
 #    summarise(mean = mean(alpha_11), SD = sd(alpha_11),
 #    IRE = IRE(alpha_11, time), time = mean(time))
 #  
-#  table2 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
+#  table2 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
 #               caption = "Results for the p_1 estimates of the growth model. ")
 #  saveRDS(table2, file = "psi_pf_experiments/table2.rds")
 
 ## ----table2, echo = FALSE-----------------------------------------------------
 readRDS("psi_pf_experiments/table2.rds")
 
-## ---- echo = FALSE, eval = FALSE----------------------------------------------
+## ----echo = FALSE, eval = FALSE-----------------------------------------------
 #  library("bssm")
 #  library("foreach")
 #  library("doParallel")
@@ -191,7 +198,8 @@ readRDS("psi_pf_experiments/table2.rds")
 #    cl<-makeCluster(n_cores)
 #    registerDoParallel(cl)
 #  
-#    results <- foreach (j = 1:n_cores, .combine = "rbind", .packages = "bssm") %dopar% {
+#    results <- foreach (j = 1:n_cores, .combine = "rbind",
+#      .packages = "bssm") %dopar% {
 #  
 #      Rcpp::sourceCpp("ar_exp_model_functions.cpp")
 #      pntrs <- create_xptrs()
@@ -206,16 +214,19 @@ readRDS("psi_pf_experiments/table2.rds")
 #      bsf <- ekpf <- psi <- matrix(NA, 6, nsim / n_cores)
 #  
 #  
-#      for(i in 1:ncol(bsf)) {
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
+#      for(i in seq_len(ncol(bsf))) {
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "bsf"))[3]
 #        bsf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #  
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "psi"))[3]
 #        psi[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #  
-#        time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
+#        time <- system.time(out <- particle_smoother(model,
+#          particles = particles, method = "ekf"))[3]
 #        ekpf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
 #          out$alphahat[n, ], out$Vt[, , n], time)
 #      }
@@ -266,7 +277,7 @@ readRDS("psi_pf_experiments/table2.rds")
 #  saveRDS(ar_result_1000, file = "ar_result_1000.rds")
 #  
 
-## ---- echo = FALSE, eval = FALSE----------------------------------------------
+## ----echo = FALSE, eval = FALSE-----------------------------------------------
 #  ar10 <- readRDS("psi_pf_experiments/ar_result_10.rds")
 #  ar100 <- readRDS("psi_pf_experiments/ar_result_100.rds")
 #  ar1000 <- readRDS("psi_pf_experiments/ar_result_1000.rds")
@@ -276,11 +287,11 @@ readRDS("psi_pf_experiments/table2.rds")
 ## ----loglik_ar, echo = FALSE, eval = FALSE------------------------------------
 #  reference <- readRDS("psi_pf_experiments/ar_truth.rds")
 #  truth <- reference["logLik"]
-#  sumr <- results %>% group_by(method, N) %>%
+#  sumr <- results|> group_by(method, N)|>
 #    summarise(mean = mean(logLik), SD = sd(logLik),
 #      IRE = IRE(logLik, time), time = mean(time))
-#  table3 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
-#               caption = "Results for the log-likelihood estimates of the AR model. ")
+#  table3 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
+#   caption = "Results for the log-likelihood estimates of the AR model. ")
 #  saveRDS(table3, file = "psi_pf_experiments/table3.rds")
 
 ## ----table3, echo = FALSE-----------------------------------------------------
@@ -288,10 +299,10 @@ readRDS("psi_pf_experiments/table3.rds")
 
 ## ----state1_ar, echo = FALSE, eval = FALSE------------------------------------
 #  truth <- reference["alpha_1"]
-#  sumr <- results %>% group_by(method, N) %>%
+#  sumr <- results|> group_by(method, N)|>
 #    summarise(mean = mean(alpha_1), SD = sd(alpha_1),
 #      IRE = IRE(alpha_1, time))
-#  table4 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
+#  table4 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
 #               caption = "Results for the alpha_1 estimates of the AR model. ")
 #  saveRDS(table4, file = "psi_pf_experiments/table4.rds")
 

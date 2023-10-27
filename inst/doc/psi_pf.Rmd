@@ -16,6 +16,7 @@ bvignette: |
 ```
 
 ```{r, echo = FALSE}
+Sys.setenv("OMP_NUM_THREADS" = 2) # For CRAN
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {
   warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
@@ -146,7 +147,8 @@ growth_model_experiment <- function(n_cores, nsim, particles) {
   p <- numeric(n)
   p[1] <- p1
   for(i in 2:n)
-    p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
+    p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / 
+        (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
   # observations
   y <- p + rnorm(n, 0, 1)
   
@@ -158,7 +160,8 @@ growth_model_experiment <- function(n_cores, nsim, particles) {
   cl<-makeCluster(n_cores)
   registerDoParallel(cl)
   
-  results <- foreach (j = 1:n_cores, .combine = "rbind", .packages = "bssm") %dopar% {
+  results <- foreach (j = 1:n_cores, .combine = "rbind", 
+    .packages = "bssm") %dopar% {
     
     Rcpp::sourceCpp("growth_model_functions.cpp")
     pntrs <- create_xptrs()
@@ -171,17 +174,20 @@ growth_model_experiment <- function(n_cores, nsim, particles) {
     
     bsf <- ekpf <- psi <- matrix(NA, 10, nsim / n_cores)
     
-    for(i in 1:ncol(bsf)) {
+    for(i in seq_len(ncol(bsf))) {
       
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "bsf"))[3]
       bsf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
         out$alphahat[n, ], diag(out$Vt[, , n]), time)
       
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "psi"))[3]
       psi[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
         out$alphahat[n, ], diag(out$Vt[, , n]), time)
       
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "ekf"))[3]
       ekpf[, i] <- c(out$logLik, out$alphahat[1, ], diag(out$Vt[, , 1]),
         out$alphahat[n, ], diag(out$Vt[, , n]), time)
     }
@@ -222,7 +228,8 @@ r <- plogis(cumsum(c(-1.5, rnorm(n - 1, sd = 0.05))))
 p <- numeric(n)
 p[1] <- p1
 for(i in 2:n)
-  p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
+  p[i] <- rnorm(1, K * p[i-1] * exp(r[i-1] * dT) / 
+      (K + p[i-1] * (exp(r[i-1] * dT) - 1)), 1)
 # observations
 y <- p + rnorm(n, 0, 1)
 
@@ -265,11 +272,11 @@ IRE <- function(x, time) {
     mean((x - truth)^2) * mean(time)
 }
 truth <- reference["logLik"]
-sumr <- results %>% group_by(method, N) %>%
+sumr <- results|> group_by(method, N)|>
   summarise(mean = mean(logLik), SD = sd(logLik), 
     IRE = IRE(logLik, time), time = mean(time))
-table1 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
-             caption = "Results for the log-likelihood estimates of the growth model. ")
+table1 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
+  caption = "Results for the log-likelihood estimates of the growth model. ")
 saveRDS(table1, file = "psi_pf_experiments/table1.rds")
 ```
 ```{r tabl21, echo = FALSE}
@@ -279,11 +286,11 @@ readRDS("psi_pf_experiments/table1.rds")
 Similar table for the smoothed estimate of $p_1$ show again the superiority of the $\psi$-PF, with no clear differences between BSF and EKPF.
 ```{r alpha, echo = FALSE, eval = FALSE}
 truth <- reference["alpha_11"]
-sumr <- results %>% group_by(method, N) %>% 
+sumr <- results|> group_by(method, N)|> 
   summarise(mean = mean(alpha_11), SD = sd(alpha_11), 
   IRE = IRE(alpha_11, time), time = mean(time))
 
-table2 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
+table2 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
              caption = "Results for the p_1 estimates of the growth model. ")
 saveRDS(table2, file = "psi_pf_experiments/table2.rds")
 ```
@@ -316,7 +323,8 @@ ar_exp_model_experiment <- function(n_cores, nsim, particles, theta) {
   cl<-makeCluster(n_cores)
   registerDoParallel(cl)
   
-  results <- foreach (j = 1:n_cores, .combine = "rbind", .packages = "bssm") %dopar% {
+  results <- foreach (j = 1:n_cores, .combine = "rbind", 
+    .packages = "bssm") %dopar% {
     
     Rcpp::sourceCpp("ar_exp_model_functions.cpp")
     pntrs <- create_xptrs()
@@ -331,16 +339,19 @@ ar_exp_model_experiment <- function(n_cores, nsim, particles, theta) {
     bsf <- ekpf <- psi <- matrix(NA, 6, nsim / n_cores)
     
   
-    for(i in 1:ncol(bsf)) {
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "bsf"))[3]
+    for(i in seq_len(ncol(bsf))) {
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "bsf"))[3]
       bsf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
         out$alphahat[n, ], out$Vt[, , n], time)
       
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "psi"))[3]
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "psi"))[3]
       psi[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
         out$alphahat[n, ], out$Vt[, , n], time)
       
-      time <- system.time(out <- particle_smoother(model, particles = particles, method = "ekf"))[3]
+      time <- system.time(out <- particle_smoother(model, 
+        particles = particles, method = "ekf"))[3]
       ekpf[, i] <- c(out$logLik, out$alphahat[1, ], out$Vt[, , 1],
         out$alphahat[n, ], out$Vt[, , n], time)
     }
@@ -405,11 +416,11 @@ Table 4 shows the means and standard deviations of the log-likelihood estimates 
 ```{r loglik_ar, echo = FALSE, eval = FALSE}
 reference <- readRDS("psi_pf_experiments/ar_truth.rds")
 truth <- reference["logLik"]
-sumr <- results %>% group_by(method, N) %>%
+sumr <- results|> group_by(method, N)|>
   summarise(mean = mean(logLik), SD = sd(logLik), 
     IRE = IRE(logLik, time), time = mean(time))
-table3 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
-             caption = "Results for the log-likelihood estimates of the AR model. ")
+table3 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
+ caption = "Results for the log-likelihood estimates of the AR model. ")
 saveRDS(table3, file = "psi_pf_experiments/table3.rds")
 ```
 ```{r table3, echo = FALSE}
@@ -420,10 +431,10 @@ Although with fixed number of particles the $\psi$-APF produces smaller standard
 
 ```{r state1_ar, echo = FALSE, eval = FALSE}
 truth <- reference["alpha_1"]
-sumr <- results %>% group_by(method, N) %>%
+sumr <- results|> group_by(method, N)|>
   summarise(mean = mean(alpha_1), SD = sd(alpha_1), 
     IRE = IRE(alpha_1, time))
-table4 <- sumr %>% arrange(N) %>% knitr::kable(digit = 4,
+table4 <- sumr|> arrange(N)|> knitr::kable(digit = 4,
              caption = "Results for the alpha_1 estimates of the AR model. ")
 saveRDS(table4, file = "psi_pf_experiments/table4.rds")
 ```

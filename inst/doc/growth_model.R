@@ -1,4 +1,5 @@
-## ---- echo = FALSE------------------------------------------------------------
+## ----echo = FALSE-------------------------------------------------------------
+Sys.setenv("OMP_NUM_THREADS" = 2) # For CRAN
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {
   warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
@@ -37,7 +38,7 @@ pntrs <- create_xptrs()
 ## ----theta--------------------------------------------------------------------
 initial_theta <- c(log_H = 0, log_R1 = log(0.05), log_R2 = 0)
 
-# dT, K, a1 and the prior variances of first and second state (logit r and and p)
+# dT, K, a1 and the prior variances of 1st and 2nd state (logit r and and p)
 known_params <- c(dT = dT, K = K, a11 = -1, a12 = 50, P11 = 1, P12 = 100)
 
 ## ----test---------------------------------------------------------------------
@@ -55,8 +56,10 @@ model <- ssm_nlg(y = y, a1=pntrs$a1, P1 = pntrs$P1,
 ## ----ekf----------------------------------------------------------------------
 out_filter <- ekf(model)
 out_smoother <- ekf_smoother(model)
-ts.plot(cbind(y, out_filter$att[, 2], out_smoother$alphahat[, 2]), col = 1:3)
-ts.plot(plogis(cbind(out_filter$att[, 1], out_smoother$alphahat[, 1])), col = 1:2)
+ts.plot(cbind(y, out_filter$att[, 2], 
+  out_smoother$alphahat[, 2]), col = 1:3)
+ts.plot(plogis(cbind(out_filter$att[, 1], 
+  out_smoother$alphahat[, 1])), col = 1:2)
 
 ## ----mcmc---------------------------------------------------------------------
 # Cholesky of initial proposal matrix (taken from previous runs)
@@ -77,17 +80,17 @@ d2 <- as.data.frame(mcmc_ekf, variable = "states")
 d1$method <- "is2-psi"
 d2$method <- "approx ekf"
 
-r_summary <- rbind(d1, d2) %>% 
-  filter(variable == "logit_r") %>%
-  group_by(time, method) %>%
+r_summary <- rbind(d1, d2) |> 
+  filter(variable == "logit_r") |>
+  group_by(time, method) |>
   summarise(
     mean = weighted_mean(plogis(value), weight), 
     lwr = weighted_quantile(plogis(value), weight, 0.025), 
     upr = weighted_quantile(plogis(value), weight, 0.975))
 
-p_summary <- rbind(d1, d2) %>% 
-  filter(variable == "p") %>%
-  group_by(time, method) %>%
+p_summary <- rbind(d1, d2) |> 
+  filter(variable == "p") |>
+  group_by(time, method) |>
   summarise(  
     mean = weighted_mean(value, weight), 
     lwr = weighted_quantile(value, weight, 0.025), 

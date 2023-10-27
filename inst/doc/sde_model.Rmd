@@ -14,6 +14,7 @@ vignette: |
 ---
 
 ```{r, echo = FALSE}
+Sys.setenv("OMP_NUM_THREADS" = 2) # For CRAN
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {
   warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
@@ -86,8 +87,8 @@ suppressMessages(library("diagis"))
 
 d <- as.data.frame(out, variable = "states")
 
-state_fit <- d %>% 
-  group_by(time) %>%
+state_fit <- d |> 
+  group_by(time) |>
   summarise(state = weighted_mean(value, weight), 
     lwr = weighted_quantile(value, weight, 0.025), 
     upr = weighted_quantile(value, weight, 0.975))

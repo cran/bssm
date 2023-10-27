@@ -1,7 +1,9 @@
-## ---- echo = FALSE------------------------------------------------------------
+## ----echo = FALSE-------------------------------------------------------------
+Sys.setenv("OMP_NUM_THREADS" = 2) # For CRAN
 if (!requireNamespace("rmarkdown") ||
     !rmarkdown::pandoc_available("1.12.3")) {
-  warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version 1.12.3. These were not found. Older versions will not work.")
+  warning(call. = FALSE, "These vignettes assume rmarkdown and pandoc version",
+    "1.12.3. These were not found. Older versions will not work.")
   knitr::knit_exit()
 }
 
@@ -34,9 +36,9 @@ ggplot(d, aes(x = value)) +
 ## ----trend, dev.args=list(pointsize = 10), fig.cap="Smoothed trend component with 95% intervals."----
 suppressMessages(library("dplyr"))
 d <- as.data.frame(mcmc_bsm, variable = "states")
-level_fit <- d %>% 
-  filter(variable == "level") %>%
-  group_by(time) %>%
+level_fit <- d |> 
+  filter(variable == "level") |>
+  group_by(time) |>
   summarise(consumption = mean(value), 
     lwr = quantile(value, 0.025), 
     upr = quantile(value, 0.975))

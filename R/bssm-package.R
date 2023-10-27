@@ -2,9 +2,13 @@
 #' Bayesian Inference of State Space Models
 #'
 #' This package contains functions for efficient Bayesian inference of state
-#' space models (SSMs), where model is assumed to be either
+#' space models (SSMs). For details, see the package vignette and the R Journal
+#' paper.
 #'
-#' * Exponential family state space models, where the state equation is linear
+#' @details
+#' The model is assumed to be either
+#'
+#' * Exponential family state space model, where the state equation is linear
 #'   Gaussian, and the conditional observation density is either Gaussian,
 #'   Poisson, binomial, negative binomial or Gamma density.
 #'
@@ -18,12 +22,42 @@
 #' automatically predicted, but there can be no missing values in the system
 #' matrices of the model.
 #'
-#' The \code{bssm} package includes several MCMC sampling and sequential Monte
+#' The package contains multiple functions for building the model:
+#'
+#' * `bsm_lg` for basic univariate structural time series model (BSM),
+#'   `ar1` for univariate noisy AR(1) process, and `ssm_ulg` and `ssm_mlg` for
+#'   arbitrary linear gaussian model with univariate/multivariate
+#'   observations.
+#' * The non-Gaussian versions (where observations are non-Gaussian) of the
+#'   above models can be constructed using the functions `bsm_ng`, `ar1_ng`,
+#'   `ssm_ung` and `ssm_mng`.
+#' * An univariate stochastic volatility model can be defined using a function
+#'   `svm`.
+#' * For non-linear models, user must define the model using C++ snippets and
+#'   the the function `ssm_nlg`. See details in the `growth_model` vignette.
+#' * Diffusion models can be defined with the function `ssm_sde`, again using
+#'   the C++ snippets. See `sde_model` vignette for details.
+#'
+#' See the corresponding functions for some examples and details.
+#'
+#' After building the model, the model can be estimated via `run_mcmc`
+#' function. The documentation of this function gives some examples. The
+#' \code{bssm} package includes several MCMC sampling and sequential Monte
 #' Carlo methods for models outside classic linear-Gaussian framework. For
 #' definitions of the currently supported models and methods, usage of the
 #' package as well as some theory behind the novel IS-MCMC and
 #' \eqn{\psi}{psi}-APF algorithms, see Helske and Vihola (2021), Vihola,
 #' Helske, Franks (2020), and the package vignettes.
+#'
+#' The output of the `run_mcmc` can be analysed by extracting the posterior
+#' samples of the latent states and hyperparameters using `as.data.frame`,
+#' `as_draws`, `expand_sample`, and `summary` methods, as well as `fitted` and
+#' `predict` methods. Some MCMC diagnostics checks are available via
+#' `check_diagnostics` function, some of which are also provided via the print
+#' method of the `run_mcmc` output. Functionality of the `ggplot2` and
+#' `bayesplot`, can be used to visualize the posterior draws or their summary
+#' statistics, and further diagnostics checks can be performed with the help of
+#' the `posterior` and `coda` packages.
 #'
 #' @references
 #' Helske J, Vihola M (2021). bssm: Bayesian Inference of Non-linear and
@@ -34,21 +68,60 @@
 #' based on approximate marginal Markov chain Monte Carlo.
 #' Scand J Statist. 1-38. https://doi.org/10.1111/sjos.12492
 #'
+#' H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag
+#' New York, 2016.
+#'
+#' Gabry J, Mahr T (2022). “bayesplot: Plotting for Bayesian Models.” R package
+#' version 1.9.0, https://mc-stan.org/bayesplot.
+#'
+#' Bürkner P, Gabry J, Kay M, Vehtari A (2022). “posterior: Tools for Working
+#' with Posterior Distributions.” R package version 1.2.1,
+#' https://mc-stan.org/posterior.
+#'
+#' Martyn Plummer, Nicky Best, Kate Cowles and Karen Vines (2006). CODA:
+#' Convergence Diagnosis and Output Analysis for MCMC, R News, vol 6, 7-11.
+#'
 #' @docType package
 #' @name bssm
-#' @aliases bssm
+#' @aliases bssm bssm-package
 #' @importFrom Rcpp evalCpp
 #' @importFrom stats as.ts dnorm  end frequency is.ts logLik quantile start
 #' time ts ts.union tsp tsp<- sd na.omit
 #' @useDynLib bssm
 #' @examples
+#' # Create a local level model (latent random walk + noise) to the Nile
+#' # dataset using the bsm_lg function:
 #' model <- bsm_lg(Nile,
 #'   sd_y = tnormal(init = 100, mean = 100, sd = 100, min = 0),
 #'   sd_level = tnormal(init = 50, mean = 50, sd = 100, min = 0),
 #'   a1 = 1000, P1 = 500^2)
 #'
+#' # the priors for the unknown paramters sd_y and sd_level were defined
+#' # as trunctated normal distributions, see ?bssm_prior for details
+#'
+#' # Run the MCMC for 2000 iterations (notice the small number of iterations to
+#' # comply with the CRAN's check requirements)
 #' fit <- run_mcmc(model, iter = 2000)
+#'
+#' # Some diagnostics checks:
+#' check_diagnostics(fit)
+#'
+#' # print some summary information:
 #' fit
+#'
+#' # traceplots:
+#' plot(fit)
+#'
+#' # extract the summary statistics for state variable
+#' sumr <- summary(fit,variable = "states")
+#'
+#' # visualize
+#' library("ggplot2")
+#' ggplot(sumr, aes(time, Mean)) +
+#'     geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`),alpha = 0.25) +
+#'     geom_line() +
+#'     theme_bw()
+#'
 NULL
 #' Deaths by drowning in Finland in 1969-2019
 #'
@@ -62,7 +135,7 @@ NULL
 #' @docType data
 #' @format A time series object containing 51 observations.
 #' @source Statistics Finland
-#' \url{https://pxnet2.stat.fi/PXWeb/pxweb/en/StatFin/}.
+#' \url{https://stat.fi/tup/tilastotietokannat/index_en.html}.
 #' @keywords datasets
 #' @examples
 #' data("drownings")
@@ -92,12 +165,14 @@ NULL
 #' Time Series Analysis by State Space Methods. Oxford University Press.
 #' https://doi.org/10.1093/acprof:oso/9780199641178.001.0001
 #' @examples
+#' \donttest{ # Don't test on CRAN as complains about parallelisation
 #' data("exchange")
 #' model <- svm(exchange, rho = uniform(0.97,-0.999,0.999),
 #'  sd_ar = halfnormal(0.175, 2), mu = normal(-0.87, 0, 2))
 #'
 #' out <- particle_smoother(model, particles = 500)
 #' plot.ts(cbind(model$y, exp(out$alphahat)))
+#' }
 NULL
 #' Simulated Poisson Time Series Data
 #'
